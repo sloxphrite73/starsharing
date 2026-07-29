@@ -15,7 +15,7 @@ const supabaseClient = window.supabase.createClient(
 );
 
 // ================================================================
-// 3. DOM 引用
+// 3. DOM 引用（全局声明，在 initApp 中赋值）
 // ================================================================
 let navActions, grid, statsCount, fabAdd;
 let authModal, authModalClose, authTabs, tabLogin, tabRegister;
@@ -33,10 +33,11 @@ let uploadAvatarBtn, avatarFileInput;
 // 4. 工具函数
 // ================================================================
 function showToast(message, type = 'info') {
+    const container = toastContainer || document.body; // 后备容器
     const el = document.createElement('div');
     el.className = `toast ${type}`;
     el.textContent = message;
-    toastContainer.appendChild(el);
+    container.appendChild(el);
     requestAnimationFrame(() => {
         el.classList.add('show');
     });
@@ -118,7 +119,7 @@ supabaseClient.auth.onAuthStateChange((event, session) => {
         if (event === 'SIGNED_OUT') {
             showToast('已退出', 'info');
             // 如果正在个人空间，返回主页
-            if (profileView.style.display !== 'none') {
+            if (profileView && profileView.style.display !== 'none') {
                 showHomeView();
             }
         }
@@ -136,7 +137,6 @@ function updateUI() {
     if (isLoggedIn) {
         const email = currentUser.email || '';
         const initial = getInitials(email);
-        // 显示头像（点击进入个人空间）
         navActions.innerHTML = `
             <div class="user-info" id="userAvatarBtn" style="cursor:pointer;">
                 <span class="avatar">${initial}</span>
@@ -157,7 +157,7 @@ function updateUI() {
         document.getElementById('registerBtn')?.addEventListener('click', () => openAuthModal('register'));
     }
 
-    fabAdd.classList.toggle('hidden', !isLoggedIn);
+    if (fabAdd) fabAdd.classList.toggle('hidden', !isLoggedIn);
 }
 
 // ================================================================
@@ -236,6 +236,7 @@ async function handleLogout() {
 // 8. 视图切换（主页/个人空间）
 // ================================================================
 function showHomeView() {
+    if (!homeView || !profileView) return;
     homeView.style.display = 'block';
     profileView.style.display = 'none';
     document.getElementById('mainContent').style.height = 'auto';
@@ -246,20 +247,12 @@ function showProfileView() {
         showToast('请先登录', 'error');
         return;
     }
+    if (!homeView || !profileView) return;
     homeView.style.display = 'none';
     profileView.style.display = 'block';
     document.getElementById('mainContent').style.height = '100%';
-    // 加载个人资料
     loadProfileData();
 }
-
-// 品牌点击返回主页
-document.addEventListener('DOMContentLoaded', () => {
-    brandLink = document.getElementById('brandLink');
-    if (brandLink) {
-        brandLink.addEventListener('click', showHomeView);
-    }
-});
 
 // ================================================================
 // 9. 个人资料数据加载与更新
@@ -275,17 +268,15 @@ async function loadProfileData() {
             .eq('id', currentUser.id)
             .single();
 
-        if (error && error.code !== 'PGRST116') { // 记录不存在
+        if (error && error.code !== 'PGRST116') {
             throw error;
         }
 
         if (!data) {
-            // 若不存在，创建默认记录（可能触发器未执行）
             const { error: insertError } = await supabaseClient
                 .from('profiles')
                 .insert([{ id: currentUser.id, username: currentUser.user_metadata?.username || '用户' }]);
             if (insertError) throw insertError;
-            // 重新查询
             return loadProfileData();
         }
 
@@ -298,41 +289,42 @@ async function loadProfileData() {
 }
 
 function renderProfile(data) {
-    // 头像
+    if (!profileAvatar) return;
     if (data.avatar_url) {
         profileAvatar.src = data.avatar_url;
     } else {
-        profileAvatar.src = ''; // 显示占位
+        profileAvatar.src = '';
     }
-    // 用户名
-    profileUsernameDisplay.textContent = data.username || '未设置';
-
-    // 更新限制信息
+    if (profileUsernameDisplay) {
+        profileUsernameDisplay.textContent = data.username || '未设置';
+    }
     updateLimitInfo(data);
 }
 
 function updateLimitInfo(data) {
-    // 用户名限制
-    const now = new Date();
-    const lastUserUpdate = data.username_updated_at ? new Date(data.username_updated_at) : null;
-    const userCount = data.username_update_count || 0;
-    const isTodayUser = lastUserUpdate ? isToday(lastUserUpdate) : false;
-    const userRemain = isTodayUser ? Math.max(0, 2 - userCount) : 2;
-    usernameLimitInfo.textContent = `今日剩余修改次数: ${userRemain}`;
-
-    // 头像限制
-    const lastAvatarUpdate = data.avatar_updated_at ? new Date(data.avatar_updated_at) : null;
-    const avatarCount = data.avatar_update_count || 0;
-    const isTodayAvatar = lastAvatarUpdate ? isToday(lastAvatarUpdate) : false;
-    const avatarRemain = isTodayAvatar ? Math.max(0, 2 - avatarCount) : 2;
-    avatarLimitInfo.textContent = `今日剩余修改次数: ${avatarRemain}`;
+    if (usernameLimitInfo) {
+        const now = new Date();
+        const lastUserUpdate = data.username_updated_at ? new Date(data.username_updated_at) : null;
+        const userCount = data.username_update_count || 0;
+        const isTodayUser = lastUserUpdate ? isToday(lastUserUpdate) : false;
+        const userRemain = isTodayUser ? Math.max(0, 2 - userCount) : 2;
+        usernameLimitInfo.textContent = `今日剩余修改次数: ${userRemain}`;
+    }
+    if (avatarLimitInfo) {
+        const now = new Date();
+        const lastAvatarUpdate = data.avatar_updated_at ? new Date(data.avatar_updated_at) : null;
+        const avatarCount = data.avatar_update_count || 0;
+        const isTodayAvatar = lastAvatarUpdate ? isToday(lastAvatarUpdate) : false;
+        const avatarRemain = isTodayAvatar ? Math.max(0, 2 - avatarCount) : 2;
+        avatarLimitInfo.textContent = `今日剩余修改次数: ${avatarRemain}`;
+    }
 }
 
 // ================================================================
 // 10. 更新用户名
 // ================================================================
 async function updateUsername(newUsername) {
-    if (!profileData) return;
+    if (!profileData) return false;
     const data = profileData;
     const now = new Date();
     const lastUpdate = data.username_updated_at ? new Date(data.username_updated_at) : null;
@@ -347,7 +339,7 @@ async function updateUsername(newUsername) {
             return false;
         }
         newCount = count + 1;
-        newDate = data.username_updated_at; // 保持同一天时间不变
+        newDate = data.username_updated_at;
     } else {
         newCount = 1;
         newDate = now.toISOString();
@@ -366,7 +358,6 @@ async function updateUsername(newUsername) {
 
         if (error) throw error;
         showToast('用户名更新成功！', 'success');
-        // 刷新数据
         await loadProfileData();
         return true;
     } catch (err) {
@@ -386,7 +377,6 @@ async function updateAvatar(file) {
         if (!profileData) return false;
     }
 
-    // 检查限制
     const data = profileData;
     const now = new Date();
     const lastUpdate = data.avatar_updated_at ? new Date(data.avatar_updated_at) : null;
@@ -407,26 +397,22 @@ async function updateAvatar(file) {
         newDate = now.toISOString();
     }
 
-    // 上传文件
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}.${fileExt}`;
     const filePath = `${currentUser.id}/${fileName}`;
 
     try {
-        // 先上传
         const { error: uploadError } = await supabaseClient.storage
             .from('avatars')
             .upload(filePath, file);
 
         if (uploadError) throw uploadError;
 
-        // 获取公开 URL
         const { data: urlData } = supabaseClient.storage
             .from('avatars')
             .getPublicUrl(filePath);
         const avatarUrl = urlData.publicUrl;
 
-        // 更新 profile
         const { error: updateError } = await supabaseClient
             .from('profiles')
             .update({
@@ -453,7 +439,6 @@ async function updateAvatar(file) {
 // 12. 个人空间 UI 交互绑定
 // ================================================================
 function initProfileUI() {
-    // 获取元素
     profileAvatar = document.getElementById('profileAvatar');
     profileUsernameDisplay = document.getElementById('profileUsernameDisplay');
     usernameLimitInfo = document.getElementById('usernameLimitInfo');
@@ -468,7 +453,8 @@ function initProfileUI() {
     uploadAvatarBtn = document.getElementById('uploadAvatarBtn');
     avatarFileInput = document.getElementById('avatarFileInput');
 
-    // 编辑用户名
+    if (!editUsernameBtn || !uploadAvatarBtn) return; // 若元素不存在则跳过
+
     editUsernameBtn.addEventListener('click', () => {
         usernameEditArea.style.display = 'block';
         usernameInput.value = profileUsernameDisplay.textContent;
@@ -493,7 +479,6 @@ function initProfileUI() {
         }
     });
 
-    // 上传头像
     uploadAvatarBtn.addEventListener('click', () => {
         avatarFileInput.click();
     });
@@ -511,7 +496,7 @@ function initProfileUI() {
         }
         const success = await updateAvatar(file);
         if (success) {
-            avatarFileInput.value = ''; // 重置
+            avatarFileInput.value = '';
         }
     });
 }
@@ -735,7 +720,7 @@ function subscribeWebsites() {
 // 16. 初始化
 // ================================================================
 function initApp() {
-    // DOM 元素
+    // 第一步：获取所有 DOM 元素
     navActions = document.getElementById('navActions');
     grid = document.getElementById('websiteGrid');
     statsCount = document.getElementById('statsCount');
@@ -770,13 +755,15 @@ function initApp() {
 
     toastContainer = document.getElementById('toastContainer');
 
-    // 品牌点击返回
+    // 第二步：初始化个人空间 UI（元素已存在）
+    initProfileUI();
+
+    // 第三步：绑定事件
     brandLink = document.getElementById('brandLink');
     if (brandLink) {
         brandLink.addEventListener('click', showHomeView);
     }
 
-    // 绑定事件
     authModalClose.addEventListener('click', closeAuthModal);
     authModal.addEventListener('click', (e) => {
         if (e.target === authModal) closeAuthModal();
@@ -850,9 +837,6 @@ function initApp() {
     window.showHomeView = showHomeView;
     window.showProfileView = showProfileView;
 
-    // 初始化个人空间 UI
-    initProfileUI();
-
     // 检查配置
     if (SUPABASE_CONFIG.url.includes('YOUR_PROJECT')) {
         grid.innerHTML = `
@@ -869,7 +853,7 @@ function initApp() {
         return;
     }
 
-    // 启动
+    // 最后启动（此时所有 DOM 已就绪）
     loadSession().catch((err) => {
         console.error('初始化失败:', err);
         showToast('初始化失败，请检查控制台', 'error');
