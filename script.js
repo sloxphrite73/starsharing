@@ -834,7 +834,7 @@ function subscribeWebsites() {
 // 16. 初始化
 // ================================================================
 function initApp() {
-    // 第一步：获取所有 DOM 元素
+    // ========== 1. 获取所有 DOM 元素 ==========
     navActions = document.getElementById('navActions');
     grid = document.getElementById('websiteGrid');
     statsCount = document.getElementById('statsCount');
@@ -876,33 +876,22 @@ function initApp() {
     const zoomOutBtn = document.getElementById('zoomOutBtn');
     const resetCropBtn = document.getElementById('resetCropBtn');
     cropCanvas = document.getElementById('cropCanvas');
-    // 在 initApp 的 DOM 获取部分之后，添加：
-
-    // 监听 URL 输入框的失焦事件（blur）自动获取信息
-    addUrl.addEventListener('blur', function() {
-        const url = this.value.trim();
-        if (url) {
-            // 如果标题为空，或者之前是默认值，我们可以自动填充
-            // 但不强制覆盖用户手动输入的标题，这里只做自动填充
-            fetchWebsiteInfo(url);
-        }
-    });
-
     if (cropCanvas) cropCtx = cropCanvas.getContext('2d');
-    // 第二步：初始化个人空间 UI（元素已存在）
+
+    // ========== 2. 初始化个人空间 UI ==========
     initProfileUI();
 
-    // 第三步：绑定事件
+    // ========== 3. 品牌链接返回主页 ==========
     brandLink = document.getElementById('brandLink');
     if (brandLink) {
         brandLink.addEventListener('click', showHomeView);
     }
 
+    // ========== 4. 认证模态框事件 ==========
     authModalClose.addEventListener('click', closeAuthModal);
     authModal.addEventListener('click', (e) => {
         if (e.target === authModal) closeAuthModal();
     });
-
     authTabs.addEventListener('click', (e) => {
         const btn = e.target.closest('button');
         if (btn && btn.dataset.tab) {
@@ -920,12 +909,23 @@ function initApp() {
         if (e.key === 'Enter') registerForm.dispatchEvent(new Event('submit'));
     });
 
+    // ========== 5. 添加网站模态框事件 ==========
     fabAdd.addEventListener('click', openAddModal);
     addModalClose.addEventListener('click', closeAddModal);
     addModalCancel.addEventListener('click', closeAddModal);
     addModal.addEventListener('click', (e) => {
         if (e.target === addModal) closeAddModal();
     });
+
+    // 自动获取网站信息（URL 失焦时）
+    if (addUrl) {
+        addUrl.addEventListener('blur', function() {
+            const url = this.value.trim();
+            if (url) {
+                fetchWebsiteInfo(url);
+            }
+        });
+    }
 
     addForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -956,7 +956,8 @@ function initApp() {
             addForm.reset();
         }
     });
-    // 绑定裁剪事件
+
+    // ========== 6. 裁剪模态框事件 ==========
     if (cropModal) {
         cropModalClose.addEventListener('click', closeCropModal);
         cropCancelBtn.addEventListener('click', closeCropModal);
@@ -977,6 +978,8 @@ function initApp() {
         window.addEventListener('touchmove', onDragTouch, { passive: false });
         window.addEventListener('touchend', endDrag, { passive: false });
     }
+
+    // ========== 7. 全局键盘事件 ==========
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             if (authModal.classList.contains('active')) closeAuthModal();
@@ -984,14 +987,14 @@ function initApp() {
         }
     });
 
-    // 暴露全局函数
+    // ========== 8. 暴露全局函数 ==========
     window.openAddModal = openAddModal;
     window.openAuthModal = openAuthModal;
     window.loadWebsites = loadWebsites;
     window.showHomeView = showHomeView;
     window.showProfileView = showProfileView;
 
-    // 检查配置
+    // ========== 9. 检查配置并启动 ==========
     if (SUPABASE_CONFIG.url.includes('YOUR_PROJECT')) {
         grid.innerHTML = `
             <div class="empty-state" style="grid-column:1/-1; padding:40px 20px;">
@@ -1007,7 +1010,6 @@ function initApp() {
         return;
     }
 
-    // 最后启动（此时所有 DOM 已就绪）
     loadSession().catch((err) => {
         console.error('初始化失败:', err);
         showToast('初始化失败，请检查控制台', 'error');
