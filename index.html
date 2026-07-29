@@ -55,35 +55,66 @@
                     <!-- 个人资料板块 -->
                     <div class="profile-tab-panel active" id="tab-info">
                         <h2>个人资料</h2>
-                        <div class="profile-avatar-section">
-                            <img id="profileAvatar" src="" alt="头像" class="profile-avatar-img" />
-                            <div class="profile-avatar-actions">
-                                <button class="btn btn-outline btn-sm" id="uploadAvatarBtn">更换头像</button>
-                                <input type="file" id="avatarFileInput" accept="image/*" style="display:none;" />
-                                <span class="profile-limit-info" id="avatarLimitInfo"></span>
-                            </div>
-                        </div>
-                        <div class="profile-field">
-                            <label>用户名</label>
-                            <div class="profile-field-row">
-                                <span id="profileUsernameDisplay">未设置</span>
-                                <button class="btn btn-outline btn-sm" id="editUsernameBtn">编辑</button>
-                            </div>
-                            <div id="usernameEditArea" style="display:none; margin-top:8px;">
-                                <input type="text" id="usernameInput" placeholder="新用户名" class="profile-input" />
-                                <div style="margin-top:8px; display:flex; gap:8px;">
-                                    <button class="btn btn-primary btn-sm" id="saveUsernameBtn">保存</button>
-                                    <button class="btn btn-outline btn-sm" id="cancelUsernameBtn">取消</button>
+                        <div class="profile-header">
+                            <!-- 头像区域（含悬停遮罩） -->
+                            <div class="profile-avatar-wrapper" id="avatarWrapper">
+                                <img id="profileAvatar" src="" alt="头像" class="profile-avatar-img" />
+                                <div class="avatar-overlay" id="avatarOverlay">
+                                    <span>修改</span>
                                 </div>
-                                <div id="usernameLimitInfo" class="profile-limit-info"></div>
+                            </div>
+                            <!-- 右侧信息 -->
+                            <div class="profile-info">
+                                <div class="profile-name-row">
+                                    <span id="profileUsernameDisplay">未设置</span>
+                                    <button class="btn btn-outline btn-sm" id="editUsernameBtn">编辑</button>
+                                </div>
+                                <div id="usernameEditArea" style="display:none; margin-top:4px;">
+                                    <input type="text" id="usernameInput" placeholder="新用户名" class="profile-input" />
+                                    <div style="margin-top:4px; display:flex; gap:6px;">
+                                        <button class="btn btn-primary btn-sm" id="saveUsernameBtn">保存</button>
+                                        <button class="btn btn-outline btn-sm" id="cancelUsernameBtn">取消</button>
+                                    </div>
+                                    <div id="usernameLimitInfo" class="profile-limit-info"></div>
+                                </div>
+                                <div class="profile-email">
+                                    <span id="profileEmailDisplay"></span>
+                                </div>
+                                <div class="profile-limit-info" id="avatarLimitInfo"></div>
                             </div>
                         </div>
+                        <!-- 隐藏的文件输入（供头像遮罩点击触发） -->
+                        <input type="file" id="avatarFileInput" accept="image/*" style="display:none;" />
                     </div>
                 </section>
             </div>
         </div>
     </main>
-
+    <!-- ===== 头像裁剪模态框 ===== -->
+    <div class="modal-overlay" id="cropModal">
+        <div class="modal crop-modal">
+            <button class="modal-close" id="cropModalClose">✕</button>
+            <h2>调整头像</h2>
+            <p class="subtitle">拖动或缩放图片，圆形区域将作为最终头像</p>
+            <div class="crop-container">
+                <div class="crop-viewport">
+                    <canvas id="cropCanvas"></canvas>
+                    <div class="crop-mask">
+                        <div class="crop-circle"></div>
+                    </div>
+                </div>
+                <div class="crop-controls">
+                    <button class="btn btn-outline btn-sm" id="zoomInBtn">➕</button>
+                    <button class="btn btn-outline btn-sm" id="zoomOutBtn">➖</button>
+                    <button class="btn btn-outline btn-sm" id="resetCropBtn">重置</button>
+                </div>
+            </div>
+            <div class="form-actions" style="margin-top:16px;">
+                <button class="btn btn-outline" id="cropCancelBtn">取消</button>
+                <button class="btn btn-primary" id="cropConfirmBtn">确认裁剪</button>
+            </div>
+        </div>
+    </div>
     <!-- ===== 浮动添加按钮 ===== -->
     <button class="fab hidden" id="fabAdd" title="添加网站">＋</button>
 

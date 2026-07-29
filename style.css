@@ -882,3 +882,166 @@ a {
         width: 100%;
     }
 }
+/* ===== 个人资料新布局 ===== */
+.profile-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 30px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.profile-avatar-wrapper {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    flex-shrink: 0;
+    cursor: pointer;
+    border-radius: 50%;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+}
+
+.profile-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.avatar-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 500;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    border-radius: 50%;
+}
+
+.profile-avatar-wrapper:hover .avatar-overlay {
+    opacity: 1;
+}
+
+.profile-info {
+    flex: 1;
+    padding-top: 8px;
+}
+
+.profile-name-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.profile-name-row #profileUsernameDisplay {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--gray-900);
+}
+
+.profile-email {
+    font-size: 14px;
+    color: var(--gray-400);
+    margin-top: 4px;
+}
+
+.profile-email span {
+    color: var(--gray-400);
+}
+
+/* ===== 裁剪模态框 ===== */
+.crop-modal {
+    max-width: 600px;
+    padding: 24px;
+}
+
+.crop-container {
+    position: relative;
+    margin: 16px 0;
+    background: #1a1a1a;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.crop-viewport {
+    position: relative;
+    width: 100%;
+    height: 400px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.crop-viewport canvas {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    cursor: grab;
+    touch-action: none;
+}
+.crop-viewport canvas:active {
+    cursor: grabbing;
+}
+
+.crop-mask {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.crop-circle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,0.6);
+    border: 2px solid rgba(255,255,255,0.3);
+}
+
+.crop-controls {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    padding: 12px;
+    background: rgba(0,0,0,0.05);
+}
+
+/* 响应式调整 */
+@media (max-width: 640px) {
+    .profile-header {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+    .profile-name-row {
+        justify-content: center;
+    }
+    .profile-avatar-wrapper {
+        width: 100px;
+        height: 100px;
+    }
+    .profile-name-row #profileUsernameDisplay {
+        font-size: 22px;
+    }
+    .crop-viewport {
+        height: 300px;
+    }
+    .crop-circle {
+        width: 150px;
+        height: 150px;
+    }
+    .crop-modal {
+        padding: 16px;
+    }
+}

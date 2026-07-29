@@ -28,6 +28,10 @@ let homeView, profileView, brandLink;
 let profileAvatar, profileUsernameDisplay, usernameLimitInfo, avatarLimitInfo;
 let editUsernameBtn, usernameEditArea, usernameInput, saveUsernameBtn, cancelUsernameBtn;
 let uploadAvatarBtn, avatarFileInput;
+let cropModal, cropCanvas, cropCtx, cropImage, cropScale = 1, cropOffsetX = 0, cropOffsetY = 0;
+let isDragging = false, dragStartX, dragStartY, dragStartOffsetX, dragStartOffsetY;
+let cropFile = null;
+const CROP_CIRCLE_RADIUS = 100; // 裁剪圆半径（像素），实际大小由 CSS 控制，这里用于计算
 
 // ================================================================
 // 4. 工具函数
@@ -303,10 +307,15 @@ function renderProfile(data) {
     if (data.avatar_url) {
         profileAvatar.src = data.avatar_url;
     } else {
-        profileAvatar.src = '';
+        profileAvatar.src = ''; // 显示占位
     }
     if (profileUsernameDisplay) {
         profileUsernameDisplay.textContent = data.username || '未设置';
+    }
+    // 添加邮箱显示
+    const emailDisplay = document.getElementById('profileEmailDisplay');
+    if (emailDisplay && currentUser) {
+        emailDisplay.textContent = currentUser.email || '';
     }
     updateLimitInfo(data);
 }
@@ -460,8 +469,37 @@ function initProfileUI() {
     saveUsernameBtn = document.getElementById('saveUsernameBtn');
     cancelUsernameBtn = document.getElementById('cancelUsernameBtn');
 
-    uploadAvatarBtn = document.getElementById('uploadAvatarBtn');
-    avatarFileInput = document.getElementById('avatarFileInput');
+    // 头像相关 - 改用遮罩点击
+    const avatarWrapper = document.getElementById('avatarWrapper');
+    const avatarFileInput = document.getElementById('avatarFileInput');
+
+    // 点击头像遮罩触发文件选择
+    if (avatarWrapper && avatarFileInput) {
+        avatarWrapper.addEventListener('click', () => {
+            avatarFileInput.click();
+        });
+    }
+
+    // 文件选择后打开裁剪模态框（原先的直接上传逻辑移至裁剪确认）
+    if (avatarFileInput) {
+        avatarFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            if (!file.type.startsWith('image/')) {
+                showToast('请上传图片文件', 'error');
+                avatarFileInput.value = '';
+                return;
+            }
+            if (file.size > 5 * 1024 * 1024) {
+                showToast('图片大小不能超过 5MB', 'error');
+                avatarFileInput.value = '';
+                return;
+            }
+            // 打开裁剪窗口
+            openCropModal(file);
+            avatarFileInput.value = ''; // 重置，允许重复选择同一文件
+        });
+    }
 
     if (!editUsernameBtn || !uploadAvatarBtn) return; // 若元素不存在则跳过
 
@@ -489,26 +527,7 @@ function initProfileUI() {
         }
     });
 
-    uploadAvatarBtn.addEventListener('click', () => {
-        avatarFileInput.click();
-    });
 
-    avatarFileInput.addEventListener('change', async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        if (!file.type.startsWith('image/')) {
-            showToast('请上传图片文件', 'error');
-            return;
-        }
-        if (file.size > 2 * 1024 * 1024) {
-            showToast('图片大小不能超过 2MB', 'error');
-            return;
-        }
-        const success = await updateAvatar(file);
-        if (success) {
-            avatarFileInput.value = '';
-        }
-    });
 }
 
 // ================================================================
@@ -764,7 +783,15 @@ function initApp() {
     addError = document.getElementById('addError');
 
     toastContainer = document.getElementById('toastContainer');
-
+    cropModal = document.getElementById('cropModal');
+    const cropModalClose = document.getElementById('cropModalClose');
+    const cropCancelBtn = document.getElementById('cropCancelBtn');
+    const cropConfirmBtn = document.getElementById('cropConfirmBtn');
+    const zoomInBtn = document.getElementById('zoomInBtn');
+    const zoomOutBtn = document.getElementById('zoomOutBtn');
+    const resetCropBtn = document.getElementById('resetCropBtn');
+    cropCanvas = document.getElementById('cropCanvas');
+    if (cropCanvas) cropCtx = cropCanvas.getContext('2d');
     // 第二步：初始化个人空间 UI（元素已存在）
     initProfileUI();
 
@@ -832,7 +859,27 @@ function initApp() {
             addForm.reset();
         }
     });
+    // 绑定裁剪事件
+    if (cropModal) {
+        cropModalClose.addEventListener('click', closeCropModal);
+        cropCancelBtn.addEventListener('click', closeCropModal);
+        cropModal.addEventListener('click', (e) => {
+            if (e.target === cropModal) closeCropModal();
+        });
+        cropConfirmBtn.addEventListener('click', confirmCrop);
+        zoomInBtn.addEventListener('click', () => adjustCropZoom(0.1));
+        zoomOutBtn.addEventListener('click', () => adjustCropZoom(-0.1));
+        resetCropBtn.addEventListener('click', resetCropTransform);
 
+        // 拖拽事件（鼠标）
+        cropCanvas.addEventListener('mousedown', startDrag);
+        window.addEventListener('mousemove', onDrag);
+        window.addEventListener('mouseup', endDrag);
+        // 触摸事件
+        cropCanvas.addEventListener('touchstart', startDragTouch, { passive: false });
+        window.addEventListener('touchmove', onDragTouch, { passive: false });
+        window.addEventListener('touchend', endDrag, { passive: false });
+    }
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             if (authModal.classList.contains('active')) closeAuthModal();
@@ -872,7 +919,173 @@ function initApp() {
 
     console.log('⭐ StarSharing 已启动 (含个人空间)');
 }
+// ===== 裁剪模态框控制 =====
+function openCropModal(file) {
+    if (!cropModal) return;
+    cropFile = file;
+    // 读取图片
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+            cropImage = img;
+            resetCropTransform();
+            renderCropCanvas();
+            cropModal.classList.add('active');
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
 
+function closeCropModal() {
+    if (cropModal) cropModal.classList.remove('active');
+    cropFile = null;
+    cropImage = null;
+}
+
+function resetCropTransform() {
+    cropScale = 1;
+    cropOffsetX = 0;
+    cropOffsetY = 0;
+}
+
+function adjustCropZoom(delta) {
+    if (!cropImage) return;
+    cropScale = Math.min(Math.max(cropScale + delta, 0.5), 3);
+    renderCropCanvas();
+}
+
+function renderCropCanvas() {
+    if (!cropCanvas || !cropCtx || !cropImage) return;
+    const canvas = cropCanvas;
+    const ctx = cropCtx;
+    const rect = canvas.parentElement.getBoundingClientRect();
+    const containerWidth = rect.width || 400;
+    const containerHeight = rect.height || 400;
+
+    // 设置 canvas 大小与容器一致（实际显示尺寸）
+    canvas.width = containerWidth;
+    canvas.height = containerHeight;
+
+    // 清空
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 计算缩放后的图片尺寸（保持比例）
+    const imgAspect = cropImage.width / cropImage.height;
+    let drawWidth = canvas.width;
+    let drawHeight = canvas.width / imgAspect;
+    if (drawHeight < canvas.height) {
+        drawHeight = canvas.height;
+        drawWidth = canvas.height * imgAspect;
+    }
+    // 应用缩放
+    drawWidth *= cropScale;
+    drawHeight *= cropScale;
+
+    // 计算偏移（使图片居中）
+    let offsetX = (canvas.width - drawWidth) / 2 + cropOffsetX;
+    let offsetY = (canvas.height - drawHeight) / 2 + cropOffsetY;
+
+    // 绘制图片
+    ctx.drawImage(cropImage, offsetX, offsetY, drawWidth, drawHeight);
+
+    // 绘制圆形遮罩（在 canvas 上画一个圆形裁剪区域提示，但实际由 CSS mask 控制，这里只画半透明圆环辅助）
+    // 但为了更好的视觉，我们也可以在 canvas 上画一个半透明外圆，但我们现在用 CSS mask，所以 canvas 上只画图片，CSS 负责遮罩
+}
+
+// 拖拽逻辑（鼠标）
+function startDrag(e) {
+    if (!cropImage) return;
+    isDragging = true;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    dragStartOffsetX = cropOffsetX;
+    dragStartOffsetY = cropOffsetY;
+    cropCanvas.style.cursor = 'grabbing';
+    e.preventDefault();
+}
+
+function onDrag(e) {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStartX;
+    const dy = e.clientY - dragStartY;
+    cropOffsetX = dragStartOffsetX + dx;
+    cropOffsetY = dragStartOffsetY + dy;
+    renderCropCanvas();
+    e.preventDefault();
+}
+
+function endDrag(e) {
+    if (isDragging) {
+        isDragging = false;
+        cropCanvas.style.cursor = 'grab';
+    }
+}
+
+// 触摸拖拽
+function startDragTouch(e) {
+    const touch = e.touches[0];
+    if (!touch || !cropImage) return;
+    isDragging = true;
+    dragStartX = touch.clientX;
+    dragStartY = touch.clientY;
+    dragStartOffsetX = cropOffsetX;
+    dragStartOffsetY = cropOffsetY;
+    e.preventDefault();
+}
+
+function onDragTouch(e) {
+    if (!isDragging) return;
+    const touch = e.touches[0];
+    if (!touch) return;
+    const dx = touch.clientX - dragStartX;
+    const dy = touch.clientY - dragStartY;
+    cropOffsetX = dragStartOffsetX + dx;
+    cropOffsetY = dragStartOffsetY + dy;
+    renderCropCanvas();
+    e.preventDefault();
+}
+
+// 确认裁剪
+async function confirmCrop() {
+    if (!cropImage || !cropCanvas) return;
+    // 获取裁剪区域（圆形）
+    const canvas = cropCanvas;
+    const ctx = canvas.getContext('2d');
+    // 计算圆心（canvas 中心）和半径（取最小边的一半，但固定为圆形）
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const radius = Math.min(canvas.width, canvas.height) / 2 * 0.9; // 留一点边距，避免边缘
+
+    // 使用 canvas 绘制圆形裁剪图
+    const cropCanvasTemp = document.createElement('canvas');
+    const size = radius * 2;
+    cropCanvasTemp.width = size;
+    cropCanvasTemp.height = size;
+    const tempCtx = cropCanvasTemp.getContext('2d');
+    tempCtx.beginPath();
+    tempCtx.arc(radius, radius, radius, 0, Math.PI * 2);
+    tempCtx.clip();
+
+    // 从原 canvas 中截取圆形区域（需要计算图片偏移）
+    // 实际上我们直接使用 drawImage 从原 canvas 截取
+    tempCtx.drawImage(canvas, centerX - radius, centerY - radius, size, size, 0, 0, size, size);
+
+    // 导出为 Blob
+    const blob = await new Promise(resolve => cropCanvasTemp.toBlob(resolve, 'image/png'));
+    if (!blob) {
+        showToast('裁剪失败', 'error');
+        return;
+    }
+    const file = new File([blob], 'avatar.png', { type: 'image/png' });
+
+    // 调用上传函数（原先的 updateAvatar 接受 file）
+    const success = await updateAvatar(file);
+    if (success) {
+        closeCropModal();
+    }
+}
 // 等待 DOM 加载
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initApp);
