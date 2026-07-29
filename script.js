@@ -95,7 +95,67 @@ function isToday(date) {
            d.getMonth() === now.getMonth() &&
            d.getDate() === now.getDate();
 }
+// ===== 获取网站信息（标题 + 图标） =====
+async function fetchWebsiteInfo(url) {
+    // 规范化 URL
+    let normalizedUrl = url.trim();
+    if (!/^https?:\/\//i.test(normalizedUrl)) {
+        normalizedUrl = 'https://' + normalizedUrl;
+    }
 
+    const faviconPreview = document.getElementById('faviconPreview');
+    const urlLoading = document.getElementById('urlLoading');
+    const titleInput = document.getElementById('addTitle');
+
+    // 显示加载状态
+    if (urlLoading) urlLoading.style.display = 'inline-block';
+    if (faviconPreview) faviconPreview.style.display = 'none';
+
+    // 先尝试设置图标（使用 Google S2 服务，不需要请求许可）
+    try {
+        const domain = new URL(normalizedUrl).hostname;
+        const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+        if (faviconPreview) {
+            faviconPreview.src = faviconUrl;
+            faviconPreview.style.display = 'block';
+        }
+    } catch (e) {
+        // 无效域名忽略
+    }
+
+    // 尝试获取标题（通过代理）
+    try {
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(normalizedUrl)}`;
+        const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(5000) });
+        if (!response.ok) throw new Error('获取失败');
+        const html = await response.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        let title = doc.querySelector('title')?.textContent?.trim() || '';
+        if (title) {
+            title = title.replace(/\s+/g, ' ').trim();
+            // 仅当标题输入框为空时填充
+            if (titleInput && !titleInput.value.trim()) {
+                titleInput.value = title;
+            }
+        } else {
+            // 无标题，使用域名，同样仅在标题为空时填充
+            const domain = new URL(normalizedUrl).hostname;
+            if (titleInput && !titleInput.value.trim()) {
+                titleInput.value = domain.replace(/^www\./, '');
+            }
+        }
+    } catch (err) {
+        console.warn('获取标题失败，使用域名', err);
+        // 降级：使用域名
+        try {
+            const domain = new URL(normalizedUrl).hostname;
+            titleInput.value = domain.replace(/^www\./, '');
+        } catch (e) {}
+    } finally {
+        if (urlLoading) urlLoading.style.display = 'none';
+    }
+}
 // ================================================================
 // 5. 认证状态管理
 // ================================================================
@@ -574,6 +634,13 @@ function openAddModal() {
     addModal.classList.add('active');
     addForm.reset();
     addError.classList.remove('show');
+    // 重置图标预览和加载状态
+    const faviconPreview = document.getElementById('faviconPreview');
+    const urlLoading = document.getElementById('urlLoading');
+    if (faviconPreview) { faviconPreview.src = ''; faviconPreview.style.display = 'none'; }
+    if (urlLoading) urlLoading.style.display = 'none';
+    // 清空标题（让用户重新输入或自动获取）
+    document.getElementById('addTitle').value = '';
 }
 
 function closeAddModal() {
@@ -809,6 +876,20 @@ function initApp() {
     const zoomOutBtn = document.getElementById('zoomOutBtn');
     const resetCropBtn = document.getElementById('resetCropBtn');
     cropCanvas = document.getElementById('cropCanvas');
+    // 在 initApp 的 DOM 获取部分之后，添加：
+    const addUrl = document.getElementById('addUrl');
+    const addTitle = document.getElementById('addTitle');
+
+    // 监听 URL 输入框的失焦事件（blur）自动获取信息
+    addUrl.addEventListener('blur', function() {
+        const url = this.value.trim();
+        if (url) {
+            // 如果标题为空，或者之前是默认值，我们可以自动填充
+            // 但不强制覆盖用户手动输入的标题，这里只做自动填充
+            fetchWebsiteInfo(url);
+        }
+    });
+
     if (cropCanvas) cropCtx = cropCanvas.getContext('2d');
     // 第二步：初始化个人空间 UI（元素已存在）
     initProfileUI();

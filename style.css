@@ -1101,3 +1101,30 @@ a {
     font-size: 12px;
     color: var(--gray-400);
 }
+/* ===== 添加模态框：网址输入与图标预览 ===== */
+.url-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: relative;
+}
+.url-input-wrapper input {
+    flex: 1;
+}
+.favicon-preview {
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    object-fit: contain;
+    background: #f0f0f0;
+    flex-shrink: 0;
+}
+.url-loading {
+    font-size: 20px;
+    animation: spin 1s linear infinite;
+    display: inline-block;
+    color: var(--gray-400);
+}
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
