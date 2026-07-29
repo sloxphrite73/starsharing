@@ -323,17 +323,18 @@ function renderProfile(data) {
     if (data.avatar_url) {
         profileAvatar.src = data.avatar_url;
     } else {
-        profileAvatar.src = ''; // 显示占位
+        profileAvatar.src = '';
     }
     if (profileUsernameDisplay) {
         profileUsernameDisplay.textContent = data.username || '未设置';
     }
-    // 添加邮箱显示
     const emailDisplay = document.getElementById('profileEmailDisplay');
     if (emailDisplay && currentUser) {
         emailDisplay.textContent = currentUser.email || '';
     }
     updateLimitInfo(data);
+
+    // 更新导航栏用户信息
     updateUI();
 }
 
