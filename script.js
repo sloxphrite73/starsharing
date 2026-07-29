@@ -149,15 +149,31 @@ function updateUI() {
     const isLoggedIn = !!currentUser;
 
     if (isLoggedIn) {
+        // 从 profileData 或 user_metadata 获取用户名和头像
         const email = currentUser.email || '';
-        const initial = getInitials(email);
+        const username = profileData?.username || currentUser.user_metadata?.username || '用户';
+        const avatarUrl = profileData?.avatar_url || '';
+
+        // 构建头像 HTML（优先显示真实头像，否则显示首字母）
+        let avatarHtml = '';
+        if (avatarUrl) {
+            avatarHtml = `<img src="${avatarUrl}" alt="avatar" />`;
+        } else {
+            const initial = getInitials(email);
+            avatarHtml = `<span class="avatar">${initial}</span>`;
+        }
+
         navActions.innerHTML = `
-            <div class="user-info" id="userAvatarBtn" style="cursor:pointer;">
-                <span class="avatar">${initial}</span>
-                <span>${email}</span>
+            <div class="navbar-user-info" id="userAvatarBtn">
+                <div class="navbar-avatar">${avatarHtml}</div>
+                <div class="navbar-user-text">
+                    <div class="navbar-username">${escapeHtml(username)}</div>
+                    <div class="navbar-email">${escapeHtml(email)}</div>
+                </div>
             </div>
             <button class="btn btn-outline btn-sm" id="logoutBtn">退出</button>
         `;
+
         document.getElementById('userAvatarBtn')?.addEventListener('click', () => {
             if (currentUser) showProfileView();
         });
@@ -318,6 +334,7 @@ function renderProfile(data) {
         emailDisplay.textContent = currentUser.email || '';
     }
     updateLimitInfo(data);
+    updateUI();
 }
 
 function updateLimitInfo(data) {
