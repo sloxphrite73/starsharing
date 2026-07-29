@@ -33,22 +33,12 @@ let uploadAvatarBtn, avatarFileInput;
 // 4. 工具函数
 // ================================================================
 function showToast(message, type = 'info') {
-    // 1. 尝试使用全局变量 toastContainer（如果已赋值）
-    let container = toastContainer;
+    // 直接使用 document.body，不依赖任何全局变量
+    let container = document.body;
     
-    // 2. 如果没找到，从 DOM 中查询
+    // 如果 body 还未就绪（极罕见），延迟重试
     if (!container) {
-        container = document.getElementById('toastContainer');
-    }
-    
-    // 3. 如果还没有，降级到 document.body
-    if (!container) {
-        container = document.body;
-    }
-    
-    // 4. 如果连 body 都不存在（极早期），延迟重试
-    if (!container) {
-        setTimeout(() => showToast(message, type), 100);
+        setTimeout(() => showToast(message, type), 50);
         return;
     }
 
@@ -56,9 +46,11 @@ function showToast(message, type = 'info') {
     el.className = `toast ${type}`;
     el.textContent = message;
     container.appendChild(el);
+    
     requestAnimationFrame(() => {
         el.classList.add('show');
     });
+    
     setTimeout(() => {
         el.classList.remove('show');
         setTimeout(() => el.remove(), 400);
