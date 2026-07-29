@@ -3,11 +3,11 @@
 // ================================================================
 const SUPABASE_CONFIG = {
     url: 'https://mqqkvolvljixdztvrrfw.supabase.co', // 替换为你的 Supabase URL
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xcWt2b2x2bGppeGR6dHZycmZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUyOTEzODAsImV4cCI6MjEwMDg2NzM4MH0.RBH9KghNTYtnteVDvei7xYz3K2AsU6R7QLVbx9nofcU', // 替换为你的 supabaselient anon key
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xcWt2b2x2bGppeGR6dHZycmZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUyOTEzODAsImV4cCI6MjEwMDg2NzM4MH0.RBH9KghNTYtnteVDvei7xYz3K2AsU6R7QLVbx9nofcU',                // 替换为你的 Supabase anon key
 };
 
 // ================================================================
-// 2. 初始化 Supabase 客户端
+// 2. 初始化 Supabase 客户端（实例变量名改为 supabaseClient）
 // ================================================================
 const supabaseClient = window.supabase.createClient(
     SUPABASE_CONFIG.url,
@@ -15,9 +15,9 @@ const supabaseClient = window.supabase.createClient(
 );
 
 // ================================================================
-// 3. DOM 引用 (在 DOM 加载完成后赋值)
+// 3. DOM 引用（全局声明，在 initApp 中赋值）
 // ================================================================
-let $, $$, navActions, grid, statsCount, fabAdd;
+let navActions, grid, statsCount, fabAdd;
 let authModal, authModalClose, authTabs, tabLogin, tabRegister;
 let loginForm, registerForm, loginEmail, loginPassword;
 let registerUsername, registerEmail, registerPassword, loginError, registerError;
@@ -69,12 +69,16 @@ function escapeHtml(text) {
 }
 
 // ================================================================
-// 5. 认证状态管理
+// 5. 认证状态管理（使用 supabaseClient）
 // ================================================================
 let currentUser = null;
 
 async function loadSession() {
-    const { data, error } = await supabase.auth.getSession();
+    if (!supabaseClient || !supabaseClient.auth) {
+        console.error('Supabase 客户端未正确初始化');
+        return;
+    }
+    const { data, error } = await supabaseClient.auth.getSession();
     if (error) {
         console.warn('获取 session 失败:', error);
         return;
@@ -88,6 +92,7 @@ async function loadSession() {
     }
 }
 
+// 监听认证状态变化
 supabaseClient.auth.onAuthStateChange((event, session) => {
     currentUser = session?.user || null;
     updateUI();
@@ -106,6 +111,8 @@ supabaseClient.auth.onAuthStateChange((event, session) => {
 // 6. UI 更新
 // ================================================================
 function updateUI() {
+    if (!navActions) return;
+
     const isLoggedIn = !!currentUser;
 
     if (isLoggedIn) {
@@ -132,7 +139,7 @@ function updateUI() {
 }
 
 // ================================================================
-// 7. 认证操作
+// 7. 认证操作（使用 supabaseClient）
 // ================================================================
 async function handleLogin(e) {
     e.preventDefault();
@@ -207,6 +214,7 @@ async function handleLogout() {
 // 8. 模态框控制
 // ================================================================
 function openAuthModal(tab = 'login') {
+    if (!authModal) return;
     authModal.classList.add('active');
     switchTab(tab);
     loginError.classList.remove('show');
@@ -216,7 +224,7 @@ function openAuthModal(tab = 'login') {
 }
 
 function closeAuthModal() {
-    authModal.classList.remove('active');
+    if (authModal) authModal.classList.remove('active');
 }
 
 function openAddModal() {
@@ -250,9 +258,10 @@ function switchTab(tab) {
 }
 
 // ================================================================
-// 9. 数据操作 — 网站
+// 9. 数据操作 — 网站（使用 supabaseClient）
 // ================================================================
 async function loadWebsites() {
+    if (!grid) return;
     grid.innerHTML = `
         <div class="loading">
             <div class="spinner"></div>
@@ -390,7 +399,7 @@ async function deleteWebsite(id) {
 }
 
 // ================================================================
-// 10. 实时订阅 (Realtime)
+// 10. 实时订阅（使用 supabaseClient）
 // ================================================================
 let subscription = null;
 
@@ -421,40 +430,37 @@ function subscribeWebsites() {
 // ================================================================
 function initApp() {
     // 获取 DOM 元素
-    $ = (sel) => document.querySelector(sel);
-    $$ = (sel) => document.querySelectorAll(sel);
+    navActions = document.getElementById('navActions');
+    grid = document.getElementById('websiteGrid');
+    statsCount = document.getElementById('statsCount');
+    fabAdd = document.getElementById('fabAdd');
 
-    navActions = $('#navActions');
-    grid = $('#websiteGrid');
-    statsCount = $('#statsCount');
-    fabAdd = $('#fabAdd');
+    authModal = document.getElementById('authModal');
+    authModalClose = document.getElementById('authModalClose');
+    authTabs = document.getElementById('authTabs');
+    tabLogin = document.getElementById('tabLogin');
+    tabRegister = document.getElementById('tabRegister');
+    loginForm = document.getElementById('loginForm');
+    registerForm = document.getElementById('registerForm');
+    loginEmail = document.getElementById('loginEmail');
+    loginPassword = document.getElementById('loginPassword');
+    registerUsername = document.getElementById('registerUsername');
+    registerEmail = document.getElementById('registerEmail');
+    registerPassword = document.getElementById('registerPassword');
+    loginError = document.getElementById('loginError');
+    registerError = document.getElementById('registerError');
 
-    authModal = $('#authModal');
-    authModalClose = $('#authModalClose');
-    authTabs = $('#authTabs');
-    tabLogin = $('#tabLogin');
-    tabRegister = $('#tabRegister');
-    loginForm = $('#loginForm');
-    registerForm = $('#registerForm');
-    loginEmail = $('#loginEmail');
-    loginPassword = $('#loginPassword');
-    registerUsername = $('#registerUsername');
-    registerEmail = $('#registerEmail');
-    registerPassword = $('#registerPassword');
-    loginError = $('#loginError');
-    registerError = $('#registerError');
+    addModal = document.getElementById('addModal');
+    addModalClose = document.getElementById('addModalClose');
+    addModalCancel = document.getElementById('addModalCancel');
+    addForm = document.getElementById('addForm');
+    addTitle = document.getElementById('addTitle');
+    addUrl = document.getElementById('addUrl');
+    addDesc = document.getElementById('addDesc');
+    addCategory = document.getElementById('addCategory');
+    addError = document.getElementById('addError');
 
-    addModal = $('#addModal');
-    addModalClose = $('#addModalClose');
-    addModalCancel = $('#addModalCancel');
-    addForm = $('#addForm');
-    addTitle = $('#addTitle');
-    addUrl = $('#addUrl');
-    addDesc = $('#addDesc');
-    addCategory = $('#addCategory');
-    addError = $('#addError');
-
-    toastContainer = $('#toastContainer');
+    toastContainer = document.getElementById('toastContainer');
 
     // 绑定事件
     authModalClose.addEventListener('click', closeAuthModal);
@@ -528,7 +534,7 @@ function initApp() {
     window.openAuthModal = openAuthModal;
     window.loadWebsites = loadWebsites;
 
-    // 启动应用
+    // 检查配置是否有效
     if (SUPABASE_CONFIG.url.includes('YOUR_PROJECT')) {
         grid.innerHTML = `
             <div class="empty-state" style="grid-column:1/-1; padding:40px 20px;">
@@ -541,15 +547,17 @@ function initApp() {
                 <button class="btn btn-outline mt-8" onclick="location.reload()">重新加载</button>
             </div>
         `;
-    } else {
-        loadSession().catch((err) => {
-            console.error('初始化失败:', err);
-            showToast('初始化失败，请检查控制台', 'error');
-        });
-        subscribeWebsites();
+        return;
     }
 
-    console.log('🔗 LinkShare 已启动 (分离模式)');
+    // 启动应用
+    loadSession().catch((err) => {
+        console.error('初始化失败:', err);
+        showToast('初始化失败，请检查控制台', 'error');
+    });
+    subscribeWebsites();
+
+    console.log('⭐ StarSharing 已启动 (分离模式)');
     console.log('📌 使用 Supabase 作为后端');
 }
 
