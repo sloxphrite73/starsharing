@@ -4,20 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>StarSharing · 分享你的收藏</title>
-
-    <!-- 1. 外部样式 -->
     <link rel="stylesheet" href="style.css" />
-
-    <!-- 2. Supabase SDK -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-
 <body>
 
     <!-- ===== 导航栏 ===== -->
     <header class="navbar" id="navbar">
-        <div class="navbar-brand">
+        <div class="navbar-brand" id="brandLink" style="cursor:pointer;">
             <span class="logo-icon">⭐</span>
             <span>StarSharing</span>
         </div>
@@ -26,21 +20,66 @@
         </div>
     </header>
 
-    <!-- ===== 主内容 ===== -->
+    <!-- ===== 主内容容器 ===== -->
     <main class="main" id="mainContent">
-        <div class="page-header">
-            <div>
-                <h1>⭐ 发现好网站</h1>
-                <p>大家收藏的宝藏网站，一起分享探索</p>
+
+        <!-- 主页：网站列表 -->
+        <div id="homeView">
+            <div class="page-header">
+                <div>
+                    <h1>⭐ 发现好网站</h1>
+                    <p>大家收藏的宝藏网站，一起分享探索</p>
+                </div>
+                <span class="stats" id="statsCount">共 0 个网站</span>
             </div>
-            <span class="stats" id="statsCount">共 0 个网站</span>
+            <div id="websiteGrid">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <span>加载中...</span>
+                </div>
+            </div>
         </div>
 
-        <div id="websiteGrid">
-            <!-- 由 JS 动态渲染 -->
-            <div class="loading">
-                <div class="spinner"></div>
-                <span>加载中...</span>
+        <!-- 个人空间视图（默认隐藏） -->
+        <div id="profileView" style="display:none; height:100%;">
+            <div class="profile-layout">
+                <!-- 左侧菜单 -->
+                <aside class="profile-sidebar">
+                    <ul class="profile-menu">
+                        <li class="profile-menu-item active" data-tab="info">👤 个人资料</li>
+                        <!-- 未来可扩展更多板块 -->
+                    </ul>
+                </aside>
+                <!-- 右侧内容 -->
+                <section class="profile-content">
+                    <!-- 个人资料板块 -->
+                    <div class="profile-tab-panel active" id="tab-info">
+                        <h2>个人资料</h2>
+                        <div class="profile-avatar-section">
+                            <img id="profileAvatar" src="" alt="头像" class="profile-avatar-img" />
+                            <div class="profile-avatar-actions">
+                                <button class="btn btn-outline btn-sm" id="uploadAvatarBtn">更换头像</button>
+                                <input type="file" id="avatarFileInput" accept="image/*" style="display:none;" />
+                                <span class="profile-limit-info" id="avatarLimitInfo"></span>
+                            </div>
+                        </div>
+                        <div class="profile-field">
+                            <label>用户名</label>
+                            <div class="profile-field-row">
+                                <span id="profileUsernameDisplay">未设置</span>
+                                <button class="btn btn-outline btn-sm" id="editUsernameBtn">编辑</button>
+                            </div>
+                            <div id="usernameEditArea" style="display:none; margin-top:8px;">
+                                <input type="text" id="usernameInput" placeholder="新用户名" class="profile-input" />
+                                <div style="margin-top:8px; display:flex; gap:8px;">
+                                    <button class="btn btn-primary btn-sm" id="saveUsernameBtn">保存</button>
+                                    <button class="btn btn-outline btn-sm" id="cancelUsernameBtn">取消</button>
+                                </div>
+                                <div id="usernameLimitInfo" class="profile-limit-info"></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
             </div>
         </div>
     </main>
@@ -54,13 +93,10 @@
             <button class="modal-close" id="authModalClose">✕</button>
             <h2 id="authModalTitle">欢迎回来</h2>
             <p class="subtitle" id="authModalSub">登录你的账号，继续分享收藏</p>
-
             <div class="tabs" id="authTabs">
                 <button class="active" data-tab="login">登录</button>
                 <button data-tab="register">注册</button>
             </div>
-
-            <!-- 登录 -->
             <div class="tab-content active" id="tabLogin">
                 <form id="loginForm" autocomplete="off">
                     <div class="form-group">
@@ -77,8 +113,6 @@
                     </div>
                 </form>
             </div>
-
-            <!-- 注册 -->
             <div class="tab-content" id="tabRegister">
                 <form id="registerForm" autocomplete="off">
                     <div class="form-group">
@@ -108,7 +142,6 @@
             <button class="modal-close" id="addModalClose">✕</button>
             <h2>✨ 添加收藏</h2>
             <p class="subtitle">分享你发现的好网站，让更多人看到</p>
-
             <form id="addForm">
                 <div class="form-group">
                     <label>网站标题 <span class="required">*</span></label>
@@ -139,7 +172,6 @@
     <!-- ===== Toast 容器 ===== -->
     <div class="toast-container" id="toastContainer"></div>
 
-    <!-- ===== 引入主脚本 ===== -->
     <script src="script.js"></script>
 </body>
 </html>

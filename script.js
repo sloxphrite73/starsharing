@@ -7,7 +7,7 @@ const SUPABASE_CONFIG = {
 };
 
 // ================================================================
-// 2. 初始化 Supabase 客户端（实例变量名改为 supabaseClient）
+// 2. 初始化 Supabase 客户端
 // ================================================================
 const supabaseClient = window.supabase.createClient(
     SUPABASE_CONFIG.url,
@@ -15,7 +15,7 @@ const supabaseClient = window.supabase.createClient(
 );
 
 // ================================================================
-// 3. DOM 引用（全局声明，在 initApp 中赋值）
+// 3. DOM 引用
 // ================================================================
 let navActions, grid, statsCount, fabAdd;
 let authModal, authModalClose, authTabs, tabLogin, tabRegister;
@@ -24,6 +24,10 @@ let registerUsername, registerEmail, registerPassword, loginError, registerError
 let addModal, addModalClose, addModalCancel, addForm;
 let addTitle, addUrl, addDesc, addCategory, addError;
 let toastContainer;
+let homeView, profileView, brandLink;
+let profileAvatar, profileUsernameDisplay, usernameLimitInfo, avatarLimitInfo;
+let editUsernameBtn, usernameEditArea, usernameInput, saveUsernameBtn, cancelUsernameBtn;
+let uploadAvatarBtn, avatarFileInput;
 
 // ================================================================
 // 4. 工具函数
@@ -68,8 +72,17 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+function isToday(date) {
+    if (!date) return false;
+    const now = new Date();
+    const d = new Date(date);
+    return d.getFullYear() === now.getFullYear() &&
+           d.getMonth() === now.getMonth() &&
+           d.getDate() === now.getDate();
+}
+
 // ================================================================
-// 5. 认证状态管理（使用 supabaseClient）
+// 5. 认证状态管理
 // ================================================================
 let currentUser = null;
 
@@ -87,21 +100,27 @@ async function loadSession() {
     updateUI();
     if (currentUser) {
         await loadWebsites();
+        // 预加载个人资料（但不显示）
+        if (currentUser) loadProfileData();
     } else {
         await loadWebsites();
     }
 }
 
-// 监听认证状态变化
 supabaseClient.auth.onAuthStateChange((event, session) => {
     currentUser = session?.user || null;
     updateUI();
     if (currentUser) {
         loadWebsites();
+        loadProfileData();
         showToast('👋 登录成功！', 'success');
     } else {
         if (event === 'SIGNED_OUT') {
             showToast('已退出', 'info');
+            // 如果正在个人空间，返回主页
+            if (profileView.style.display !== 'none') {
+                showHomeView();
+            }
         }
         loadWebsites();
     }
@@ -112,19 +131,22 @@ supabaseClient.auth.onAuthStateChange((event, session) => {
 // ================================================================
 function updateUI() {
     if (!navActions) return;
-
     const isLoggedIn = !!currentUser;
 
     if (isLoggedIn) {
         const email = currentUser.email || '';
         const initial = getInitials(email);
+        // 显示头像（点击进入个人空间）
         navActions.innerHTML = `
-            <div class="user-info">
+            <div class="user-info" id="userAvatarBtn" style="cursor:pointer;">
                 <span class="avatar">${initial}</span>
                 <span>${email}</span>
             </div>
             <button class="btn btn-outline btn-sm" id="logoutBtn">退出</button>
         `;
+        document.getElementById('userAvatarBtn')?.addEventListener('click', () => {
+            if (currentUser) showProfileView();
+        });
         document.getElementById('logoutBtn')?.addEventListener('click', handleLogout);
     } else {
         navActions.innerHTML = `
@@ -139,7 +161,7 @@ function updateUI() {
 }
 
 // ================================================================
-// 7. 认证操作（使用 supabaseClient）
+// 7. 认证操作
 // ================================================================
 async function handleLogin(e) {
     e.preventDefault();
@@ -211,7 +233,291 @@ async function handleLogout() {
 }
 
 // ================================================================
-// 8. 模态框控制
+// 8. 视图切换（主页/个人空间）
+// ================================================================
+function showHomeView() {
+    homeView.style.display = 'block';
+    profileView.style.display = 'none';
+    document.getElementById('mainContent').style.height = 'auto';
+}
+
+function showProfileView() {
+    if (!currentUser) {
+        showToast('请先登录', 'error');
+        return;
+    }
+    homeView.style.display = 'none';
+    profileView.style.display = 'block';
+    document.getElementById('mainContent').style.height = '100%';
+    // 加载个人资料
+    loadProfileData();
+}
+
+// 品牌点击返回主页
+document.addEventListener('DOMContentLoaded', () => {
+    brandLink = document.getElementById('brandLink');
+    if (brandLink) {
+        brandLink.addEventListener('click', showHomeView);
+    }
+});
+
+// ================================================================
+// 9. 个人资料数据加载与更新
+// ================================================================
+let profileData = null;
+
+async function loadProfileData() {
+    if (!currentUser) return;
+    try {
+        const { data, error } = await supabaseClient
+            .from('profiles')
+            .select('*')
+            .eq('id', currentUser.id)
+            .single();
+
+        if (error && error.code !== 'PGRST116') { // 记录不存在
+            throw error;
+        }
+
+        if (!data) {
+            // 若不存在，创建默认记录（可能触发器未执行）
+            const { error: insertError } = await supabaseClient
+                .from('profiles')
+                .insert([{ id: currentUser.id, username: currentUser.user_metadata?.username || '用户' }]);
+            if (insertError) throw insertError;
+            // 重新查询
+            return loadProfileData();
+        }
+
+        profileData = data;
+        renderProfile(data);
+    } catch (err) {
+        console.error('加载个人资料失败:', err);
+        showToast('加载个人资料失败', 'error');
+    }
+}
+
+function renderProfile(data) {
+    // 头像
+    if (data.avatar_url) {
+        profileAvatar.src = data.avatar_url;
+    } else {
+        profileAvatar.src = ''; // 显示占位
+    }
+    // 用户名
+    profileUsernameDisplay.textContent = data.username || '未设置';
+
+    // 更新限制信息
+    updateLimitInfo(data);
+}
+
+function updateLimitInfo(data) {
+    // 用户名限制
+    const now = new Date();
+    const lastUserUpdate = data.username_updated_at ? new Date(data.username_updated_at) : null;
+    const userCount = data.username_update_count || 0;
+    const isTodayUser = lastUserUpdate ? isToday(lastUserUpdate) : false;
+    const userRemain = isTodayUser ? Math.max(0, 2 - userCount) : 2;
+    usernameLimitInfo.textContent = `今日剩余修改次数: ${userRemain}`;
+
+    // 头像限制
+    const lastAvatarUpdate = data.avatar_updated_at ? new Date(data.avatar_updated_at) : null;
+    const avatarCount = data.avatar_update_count || 0;
+    const isTodayAvatar = lastAvatarUpdate ? isToday(lastAvatarUpdate) : false;
+    const avatarRemain = isTodayAvatar ? Math.max(0, 2 - avatarCount) : 2;
+    avatarLimitInfo.textContent = `今日剩余修改次数: ${avatarRemain}`;
+}
+
+// ================================================================
+// 10. 更新用户名
+// ================================================================
+async function updateUsername(newUsername) {
+    if (!profileData) return;
+    const data = profileData;
+    const now = new Date();
+    const lastUpdate = data.username_updated_at ? new Date(data.username_updated_at) : null;
+    const count = data.username_update_count || 0;
+    const isTodayUpdate = lastUpdate ? isToday(lastUpdate) : false;
+
+    let newCount = 1;
+    let newDate = now.toISOString();
+    if (isTodayUpdate) {
+        if (count >= 2) {
+            showToast('今日修改次数已达上限（2次）', 'error');
+            return false;
+        }
+        newCount = count + 1;
+        newDate = data.username_updated_at; // 保持同一天时间不变
+    } else {
+        newCount = 1;
+        newDate = now.toISOString();
+    }
+
+    try {
+        const { error } = await supabaseClient
+            .from('profiles')
+            .update({
+                username: newUsername.trim(),
+                username_updated_at: newDate,
+                username_update_count: newCount,
+                updated_at: now.toISOString()
+            })
+            .eq('id', currentUser.id);
+
+        if (error) throw error;
+        showToast('用户名更新成功！', 'success');
+        // 刷新数据
+        await loadProfileData();
+        return true;
+    } catch (err) {
+        console.error('更新用户名失败:', err);
+        showToast('更新失败: ' + err.message, 'error');
+        return false;
+    }
+}
+
+// ================================================================
+// 11. 更新头像（上传至 Storage）
+// ================================================================
+async function updateAvatar(file) {
+    if (!file || !currentUser) return false;
+    if (!profileData) {
+        await loadProfileData();
+        if (!profileData) return false;
+    }
+
+    // 检查限制
+    const data = profileData;
+    const now = new Date();
+    const lastUpdate = data.avatar_updated_at ? new Date(data.avatar_updated_at) : null;
+    const count = data.avatar_update_count || 0;
+    const isTodayUpdate = lastUpdate ? isToday(lastUpdate) : false;
+
+    let newCount = 1;
+    let newDate = now.toISOString();
+    if (isTodayUpdate) {
+        if (count >= 2) {
+            showToast('今日修改次数已达上限（2次）', 'error');
+            return false;
+        }
+        newCount = count + 1;
+        newDate = data.avatar_updated_at;
+    } else {
+        newCount = 1;
+        newDate = now.toISOString();
+    }
+
+    // 上传文件
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}.${fileExt}`;
+    const filePath = `${currentUser.id}/${fileName}`;
+
+    try {
+        // 先上传
+        const { error: uploadError } = await supabaseClient.storage
+            .from('avatars')
+            .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        // 获取公开 URL
+        const { data: urlData } = supabaseClient.storage
+            .from('avatars')
+            .getPublicUrl(filePath);
+        const avatarUrl = urlData.publicUrl;
+
+        // 更新 profile
+        const { error: updateError } = await supabaseClient
+            .from('profiles')
+            .update({
+                avatar_url: avatarUrl,
+                avatar_updated_at: newDate,
+                avatar_update_count: newCount,
+                updated_at: now.toISOString()
+            })
+            .eq('id', currentUser.id);
+
+        if (updateError) throw updateError;
+
+        showToast('头像更新成功！', 'success');
+        await loadProfileData();
+        return true;
+    } catch (err) {
+        console.error('上传头像失败:', err);
+        showToast('上传失败: ' + err.message, 'error');
+        return false;
+    }
+}
+
+// ================================================================
+// 12. 个人空间 UI 交互绑定
+// ================================================================
+function initProfileUI() {
+    // 获取元素
+    profileAvatar = document.getElementById('profileAvatar');
+    profileUsernameDisplay = document.getElementById('profileUsernameDisplay');
+    usernameLimitInfo = document.getElementById('usernameLimitInfo');
+    avatarLimitInfo = document.getElementById('avatarLimitInfo');
+
+    editUsernameBtn = document.getElementById('editUsernameBtn');
+    usernameEditArea = document.getElementById('usernameEditArea');
+    usernameInput = document.getElementById('usernameInput');
+    saveUsernameBtn = document.getElementById('saveUsernameBtn');
+    cancelUsernameBtn = document.getElementById('cancelUsernameBtn');
+
+    uploadAvatarBtn = document.getElementById('uploadAvatarBtn');
+    avatarFileInput = document.getElementById('avatarFileInput');
+
+    // 编辑用户名
+    editUsernameBtn.addEventListener('click', () => {
+        usernameEditArea.style.display = 'block';
+        usernameInput.value = profileUsernameDisplay.textContent;
+        editUsernameBtn.style.display = 'none';
+    });
+
+    cancelUsernameBtn.addEventListener('click', () => {
+        usernameEditArea.style.display = 'none';
+        editUsernameBtn.style.display = 'inline-flex';
+    });
+
+    saveUsernameBtn.addEventListener('click', async () => {
+        const newName = usernameInput.value.trim();
+        if (!newName) {
+            showToast('用户名不能为空', 'error');
+            return;
+        }
+        const success = await updateUsername(newName);
+        if (success) {
+            usernameEditArea.style.display = 'none';
+            editUsernameBtn.style.display = 'inline-flex';
+        }
+    });
+
+    // 上传头像
+    uploadAvatarBtn.addEventListener('click', () => {
+        avatarFileInput.click();
+    });
+
+    avatarFileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+            showToast('请上传图片文件', 'error');
+            return;
+        }
+        if (file.size > 2 * 1024 * 1024) {
+            showToast('图片大小不能超过 2MB', 'error');
+            return;
+        }
+        const success = await updateAvatar(file);
+        if (success) {
+            avatarFileInput.value = ''; // 重置
+        }
+    });
+}
+
+// ================================================================
+// 13. 模态框控制
 // ================================================================
 function openAuthModal(tab = 'login') {
     if (!authModal) return;
@@ -258,7 +564,7 @@ function switchTab(tab) {
 }
 
 // ================================================================
-// 9. 数据操作 — 网站（使用 supabaseClient）
+// 14. 数据操作 — 网站
 // ================================================================
 async function loadWebsites() {
     if (!grid) return;
@@ -399,7 +705,7 @@ async function deleteWebsite(id) {
 }
 
 // ================================================================
-// 10. 实时订阅（使用 supabaseClient）
+// 15. 实时订阅
 // ================================================================
 let subscription = null;
 
@@ -426,14 +732,16 @@ function subscribeWebsites() {
 }
 
 // ================================================================
-// 11. 初始化 DOM 引用 & 绑定事件
+// 16. 初始化
 // ================================================================
 function initApp() {
-    // 获取 DOM 元素
+    // DOM 元素
     navActions = document.getElementById('navActions');
     grid = document.getElementById('websiteGrid');
     statsCount = document.getElementById('statsCount');
     fabAdd = document.getElementById('fabAdd');
+    homeView = document.getElementById('homeView');
+    profileView = document.getElementById('profileView');
 
     authModal = document.getElementById('authModal');
     authModalClose = document.getElementById('authModalClose');
@@ -461,6 +769,12 @@ function initApp() {
     addError = document.getElementById('addError');
 
     toastContainer = document.getElementById('toastContainer');
+
+    // 品牌点击返回
+    brandLink = document.getElementById('brandLink');
+    if (brandLink) {
+        brandLink.addEventListener('click', showHomeView);
+    }
 
     // 绑定事件
     authModalClose.addEventListener('click', closeAuthModal);
@@ -529,12 +843,17 @@ function initApp() {
         }
     });
 
-    // 暴露全局函数供 HTML 内联调用
+    // 暴露全局函数
     window.openAddModal = openAddModal;
     window.openAuthModal = openAuthModal;
     window.loadWebsites = loadWebsites;
+    window.showHomeView = showHomeView;
+    window.showProfileView = showProfileView;
 
-    // 检查配置是否有效
+    // 初始化个人空间 UI
+    initProfileUI();
+
+    // 检查配置
     if (SUPABASE_CONFIG.url.includes('YOUR_PROJECT')) {
         grid.innerHTML = `
             <div class="empty-state" style="grid-column:1/-1; padding:40px 20px;">
@@ -542,7 +861,7 @@ function initApp() {
                 <h3>请先配置 Supabase</h3>
                 <p>在 <code>script.js</code> 开头的 <code>SUPABASE_CONFIG</code> 中填入你的 Supabase URL 和 anon key</p>
                 <p style="font-size:13px;color:var(--gray-400);margin-top:8px;">
-                    然后创建 <code>websites</code> 表，并启用 RLS（参考 README）
+                    然后创建 <code>websites</code> 和 <code>profiles</code> 表，并配置 Storage
                 </p>
                 <button class="btn btn-outline mt-8" onclick="location.reload()">重新加载</button>
             </div>
@@ -550,18 +869,17 @@ function initApp() {
         return;
     }
 
-    // 启动应用
+    // 启动
     loadSession().catch((err) => {
         console.error('初始化失败:', err);
         showToast('初始化失败，请检查控制台', 'error');
     });
     subscribeWebsites();
 
-    console.log('⭐ StarSharing 已启动 (分离模式)');
-    console.log('📌 使用 Supabase 作为后端');
+    console.log('⭐ StarSharing 已启动 (含个人空间)');
 }
 
-// 等待 DOM 加载完成后启动
+// 等待 DOM 加载
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initApp);
 } else {
