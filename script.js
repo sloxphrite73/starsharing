@@ -877,8 +877,6 @@ function initApp() {
     const resetCropBtn = document.getElementById('resetCropBtn');
     cropCanvas = document.getElementById('cropCanvas');
     // 在 initApp 的 DOM 获取部分之后，添加：
-    const addUrl = document.getElementById('addUrl');
-    const addTitle = document.getElementById('addTitle');
 
     // 监听 URL 输入框的失焦事件（blur）自动获取信息
     addUrl.addEventListener('blur', function() {
