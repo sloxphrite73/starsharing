@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>StarShare · 分享你的收藏</title>
+    <title>StarSharing · 分享你的收藏</title>
 
     <!-- 1. 外部样式 -->
     <link rel="stylesheet" href="style.css" />
 
-    <!-- 2. Supabase SDK (必须保留在 Head 中) -->
+    <!-- 2. Supabase SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
     </script>
 </head>
@@ -18,8 +18,8 @@
     <!-- ===== 导航栏 ===== -->
     <header class="navbar" id="navbar">
         <div class="navbar-brand">
-            <span class="logo-icon">🔗</span>
-            <span>LinkShare</span>
+            <span class="logo-icon">⭐</span>
+            <span>StarSharing</span>
         </div>
         <div class="navbar-actions" id="navActions">
             <!-- 由 JS 动态渲染 -->
@@ -30,7 +30,7 @@
     <main class="main" id="mainContent">
         <div class="page-header">
             <div>
-                <h1>📚 发现好网站</h1>
+                <h1>⭐ 发现好网站</h1>
                 <p>大家收藏的宝藏网站，一起分享探索</p>
             </div>
             <span class="stats" id="statsCount">共 0 个网站</span>
@@ -48,7 +48,7 @@
     <!-- ===== 浮动添加按钮 ===== -->
     <button class="fab hidden" id="fabAdd" title="添加网站">＋</button>
 
-    <!-- ===== 模态框：认证（登录/注册） ===== -->
+    <!-- ===== 模态框：认证 ===== -->
     <div class="modal-overlay" id="authModal">
         <div class="modal">
             <button class="modal-close" id="authModalClose">✕</button>
@@ -139,7 +139,7 @@
     <!-- ===== Toast 容器 ===== -->
     <div class="toast-container" id="toastContainer"></div>
 
-    <!-- ===== 引入主脚本 (放在 Body 底部确保 DOM 已加载) ===== -->
+    <!-- ===== 引入主脚本 ===== -->
     <script src="script.js"></script>
 </body>
 </html>
