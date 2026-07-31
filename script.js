@@ -769,7 +769,14 @@ function initApp() {
         return bookmarks;
     }
 
-    function renderBookmarkList(bookmarks) {
+function getFaviconURLs(domain) {
+    return [
+        `https://favicone.com/${domain}?s=32`,
+        `https://${domain}/favicon.ico`,
+    ];
+}
+
+function renderBookmarkList(bookmarks) {
         if (!importPlaceholder || !bookmarkImportResult || !bookmarkImportCount || !bookmarkList) return;
         importPlaceholder.style.display = 'none';
         bookmarkImportResult.style.display = 'block';
@@ -780,19 +787,24 @@ function initApp() {
             return;
         }
         bookmarkImportCount.textContent = `找到 ${bookmarks.length} 个书签`;
-        bookmarkList.innerHTML = bookmarks.map((b, i) => `
-            <label class="bookmark-item">
+        bookmarkList.innerHTML = bookmarks.map((b, i) => {
+            const favPrimary = `https://favicone.com/${b.domain}?s=32`;
+            const favFallback = `https://${b.domain}/favicon.ico`;
+        return `
+            <div class="bookmark-item" data-index="${i}">
                 <input type="checkbox" class="bookmark-item-checkbox" checked data-index="${i}" />
                 <div class="card-icon">
-                    <img class="card-icon-img" src="https://favicone.com/${b.domain}?s=32" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+                    <img class="card-icon-img" src="${favPrimary}" alt="" loading="lazy"
+                         onerror="var fb=this.parentElement.querySelector('.card-icon-fallback');if(fb)fb.style.display='flex';this.onerror=null;this.src='${favFallback}';" />
                     <span class="card-icon-fallback" style="display:none;">${(b.domain.charAt(0) || '🌐').toUpperCase()}</span>
                 </div>
                 <div class="bookmark-item-text">
                     <div class="bookmark-item-title">${escapeHtml(b.title)}</div>
                     <div class="bookmark-item-domain">${escapeHtml(b.domain)}</div>
                 </div>
-            </label>
-        `).join('');
+            </div>
+        `;
+    }).join('');
     }
 
     async function importSelectedBookmarks() {

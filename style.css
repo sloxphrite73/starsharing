@@ -1293,8 +1293,10 @@ a {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    max-height: 500px;
+    max-height: 480px;
     overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
 }
 
 .bookmark-item {
@@ -1308,6 +1310,7 @@ a {
     cursor: pointer;
     transition: var(--transition);
     user-select: none;
+    flex-shrink: 0;
 }
 
 .bookmark-item:hover {
