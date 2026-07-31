@@ -191,29 +191,48 @@ a {
 /* ===== 导航栏标签 ===== */
 .navbar-tabs {
     display: flex;
-    gap: 4px;
-    background: var(--gray-100);
-    border-radius: 10px;
-    padding: 4px;
+    gap: 32px;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
 }
 
 .navbar-tab {
-    padding: 7px 20px;
+    padding: 8px 0;
     border: none;
     background: transparent;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 14px;
+    font-weight: 500;
+    font-size: 15px;
     color: var(--gray-500);
     cursor: pointer;
     transition: var(--transition);
     white-space: nowrap;
+    position: relative;
+    border-radius: 0;
+}
+
+.navbar-tab::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%) scaleX(0);
+    width: 100%;
+    height: 2px;
+    background: var(--primary);
+    border-radius: 2px;
+    transition: transform 0.2s ease;
 }
 
 .navbar-tab.active {
-    background: #fff;
     color: var(--gray-900);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    font-weight: 600;
+    background: transparent;
+    box-shadow: none;
+}
+
+.navbar-tab.active::after {
+    transform: translateX(-50%) scaleX(1);
 }
 
 .navbar-tab:hover:not(.active) {
