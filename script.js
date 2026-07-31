@@ -769,42 +769,35 @@ function initApp() {
         return bookmarks;
     }
 
-function getFaviconURLs(domain) {
-    return [
-        `https://favicone.com/${domain}?s=32`,
-        `https://${domain}/favicon.ico`,
-    ];
-}
-
 function renderBookmarkList(bookmarks) {
-        if (!importPlaceholder || !bookmarkImportResult || !bookmarkImportCount || !bookmarkList) return;
-        importPlaceholder.style.display = 'none';
-        bookmarkImportResult.style.display = 'block';
+    if (!importPlaceholder || !bookmarkImportResult || !bookmarkImportCount || !bookmarkList) return;
+    importPlaceholder.style.display = 'none';
+    bookmarkImportResult.style.display = 'block';
 
-        if (bookmarks.length === 0) {
-            bookmarkImportCount.textContent = '未找到有效书签';
-            bookmarkList.innerHTML = '<div class="empty-state" style="padding:20px;"><p>文件中没有有效的 HTTP 链接</p></div>';
-            return;
-        }
-        bookmarkImportCount.textContent = `找到 ${bookmarks.length} 个书签`;
-        bookmarkList.innerHTML = bookmarks.map((b, i) => {
-            const favPrimary = `https://favicone.com/${b.domain}?s=32`;
-        return `
-            <div class="bookmark-item" data-index="${i}">
-                <input type="checkbox" class="bookmark-item-checkbox" checked data-index="${i}" />
-                <div class="card-icon">
-                    <img class="card-icon-img" src="${favPrimary}" alt="" loading="lazy"
-                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
-                    <span class="card-icon-fallback" style="display:none;">${(b.domain.charAt(0) || '🌐').toUpperCase()}</span>
-                </div>
-                <div class="bookmark-item-text">
-                    <div class="bookmark-item-title">${escapeHtml(b.title)}</div>
-                    <div class="bookmark-item-domain">${escapeHtml(b.domain)}</div>
-                </div>
-            </div>
-        `;
-    }).join('');
+    if (bookmarks.length === 0) {
+        bookmarkImportCount.textContent = '未找到有效书签';
+        bookmarkList.innerHTML = '<div class="empty-state" style="padding:20px;"><p>文件中没有有效的 HTTP 链接</p></div>';
+        return;
     }
+    bookmarkImportCount.textContent = `找到 ${bookmarks.length} 个书签`;
+    let html = '';
+    for (let i = 0; i < bookmarks.length; i++) {
+        const b = bookmarks[i];
+        html += [
+            '<div class="bookmark-item" data-index="' + i + '">',
+            '<input type="checkbox" class="bookmark-item-checkbox" checked data-index="' + i + '" />',
+            '<div class="bookmark-icon">',
+            '<span>' + escapeHtml((b.domain.charAt(0) || '🌐').toUpperCase()) + '</span>',
+            '</div>',
+            '<div class="bookmark-item-text">',
+            '<div class="bookmark-item-title">' + escapeHtml(b.title) + '</div>',
+            '<div class="bookmark-item-domain">' + escapeHtml(b.domain) + '</div>',
+            '</div>',
+            '</div>'
+        ].join('');
+    }
+    bookmarkList.innerHTML = html;
+}
 
     async function importSelectedBookmarks() {
         if (!currentUser) { showToast('请先登录', 'error'); return; }
