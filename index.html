@@ -15,6 +15,11 @@
             <span class="logo-icon">⭐</span>
             <span>StarSharing</span>
         </div>
+        <!-- 导航标签 -->
+        <nav class="navbar-tabs" id="navbarTabs">
+            <button class="navbar-tab active" data-view="bookmarkSquare">书签广场</button>
+            <button class="navbar-tab" data-view="importView">导入</button>
+        </nav>
         <div class="navbar-actions" id="navActions">
             <!-- 由 JS 动态渲染 -->
         </div>
@@ -23,8 +28,11 @@
     <!-- ===== 主内容容器 ===== -->
     <main class="main" id="mainContent">
 
-        <!-- 主页：网站列表 -->
-        <div id="homeView">
+        <!-- 书签广场：搜索 + 网站列表 -->
+        <div id="bookmarkSquareView">
+            <div class="search-bar-wrapper">
+                <input type="text" id="searchInput" class="search-input" placeholder="搜索标题…" />
+            </div>
             <div class="page-header">
                 <span class="stats" id="statsCount">共 0 个网站</span>
             </div>
@@ -33,6 +41,54 @@
                     <div class="spinner"></div>
                     <span>加载中...</span>
                 </div>
+            </div>
+        </div>
+
+        <!-- 导入视图（默认隐藏） -->
+        <div id="importView" style="display:none;">
+            <div class="import-layout">
+                <!-- 单个导入 -->
+                <section class="import-section">
+                    <h2>📌 单个导入</h2>
+                    <p class="import-subtitle">手动输入网址信息，添加一条收藏</p>
+                    <form id="addFormInline" class="import-form">
+                        <div class="form-group">
+                            <label>网站标题 <span class="required">*</span></label>
+                            <input type="text" id="addTitleInline" placeholder="例如：哔哩哔哩" required />
+                        </div>
+                        <div class="form-group">
+                            <label>网址 <span class="required">*</span></label>
+                            <div class="url-input-wrapper">
+                                <input type="url" id="addUrlInline" placeholder="https://example.com" required />
+                                <img id="faviconPreviewInline" class="favicon-preview" src="" alt="网站图标" style="display:none;" />
+                                <span id="urlLoadingInline" class="url-loading" style="display:none;">⏳</span>
+                            </div>
+                            <div class="hint">输入网址后自动获取网站图标和标题</div>
+                        </div>
+                        <div class="form-group">
+                            <label>描述</label>
+                            <textarea id="addDescInline" placeholder="简单介绍一下这个网站…" rows="3"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>标签（用逗号分隔）</label>
+                            <input type="text" id="addCategoryInline" placeholder="例如: 技术、设计、工具、阅读" />
+                        </div>
+                        <div class="form-error" id="addErrorInline"></div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">添加分享</button>
+                        </div>
+                    </form>
+                </section>
+                <!-- 从收藏夹导入 -->
+                <section class="import-section">
+                    <h2>📂 从收藏夹导入</h2>
+                    <p class="import-subtitle">从浏览器导出的书签 HTML 文件批量导入</p>
+                    <div class="import-placeholder">
+                        <div class="import-placeholder-icon">📁</div>
+                        <p>选择你从浏览器导出的书签 HTML 文件</p>
+                        <button class="btn btn-outline" disabled>即将推出</button>
+                    </div>
+                </section>
             </div>
         </div>
 
@@ -111,8 +167,6 @@
             </div>
         </div>
     </div>
-    <!-- ===== 浮动添加按钮 ===== -->
-    <button class="fab hidden" id="fabAdd" title="添加网站">＋</button>
 
     <!-- ===== 模态框：认证 ===== -->
     <div class="modal-overlay" id="authModal">
@@ -163,7 +217,7 @@
         </div>
     </div>
 
-    <!-- ===== 模态框：添加网站 ===== -->
+    <!-- ===== 模态框：添加网站（保留供兼容，实际不再使用） ===== -->
     <div class="modal-overlay" id="addModal">
         <div class="modal">
             <button class="modal-close" id="addModalClose">✕</button>

@@ -188,6 +188,38 @@ a {
     color: var(--gray-700);
 }
 
+/* ===== 导航栏标签 ===== */
+.navbar-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--gray-100);
+    border-radius: 10px;
+    padding: 4px;
+}
+
+.navbar-tab {
+    padding: 7px 20px;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--gray-500);
+    cursor: pointer;
+    transition: var(--transition);
+    white-space: nowrap;
+}
+
+.navbar-tab.active {
+    background: #fff;
+    color: var(--gray-900);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.navbar-tab:hover:not(.active) {
+    color: var(--gray-700);
+}
+
 /* ===== 主内容 ===== */
 .main {
     flex: 1;
@@ -1146,4 +1178,103 @@ a {
 }
 @keyframes spin {
     to { transform: rotate(360deg); }
+}
+
+/* ===== 搜索栏 ===== */
+.search-bar-wrapper {
+    margin-bottom: 24px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 12px 20px;
+    border: 1.5px solid var(--gray-200);
+    border-radius: 12px;
+    font-size: 15px;
+    transition: var(--transition);
+    background: #fff;
+    color: var(--gray-800);
+    font-family: inherit;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(79,70,229,0.12), 0 4px 16px rgba(0,0,0,0.06);
+}
+
+.search-input::placeholder {
+    color: var(--gray-400);
+}
+
+/* ===== 导入页面 ===== */
+.import-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    max-width: 1000px;
+}
+
+.import-section {
+    background: #fff;
+    border-radius: var(--radius);
+    padding: 28px;
+    box-shadow: var(--shadow);
+    border: 1px solid rgba(0,0,0,0.04);
+}
+
+.import-section h2 {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    color: var(--gray-900);
+}
+
+.import-subtitle {
+    color: var(--gray-400);
+    font-size: 14px;
+    margin-bottom: 20px;
+}
+
+.import-form .form-actions .btn {
+    flex: 1;
+}
+
+.import-placeholder {
+    text-align: center;
+    padding: 40px 20px;
+    border: 2px dashed var(--gray-200);
+    border-radius: var(--radius);
+    margin-top: 20px;
+    color: var(--gray-400);
+}
+
+.import-placeholder-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+
+.import-placeholder p {
+    font-size: 14px;
+    margin-bottom: 16px;
+}
+
+/* 响应式 — 导入页面 */
+@media (max-width: 768px) {
+    .import-layout {
+        grid-template-columns: 1fr;
+    }
+    .navbar-tabs {
+        gap: 2px;
+    }
+    .navbar-tab {
+        padding: 6px 12px;
+        font-size: 13px;
+    }
+    .search-input {
+        padding: 10px 16px;
+        font-size: 14px;
+    }
 }
