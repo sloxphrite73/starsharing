@@ -761,6 +761,7 @@ function renderCards(websites) {
     const html = websites.map((item) => {
         const domain = getDomain(item.url);
         const isOwner = currentUser && item.user_id === currentUser.id;
+        const displayName = item.user_username || item.user_email || '匿名';
         return `
             <div class="card" data-id="${item.id}">
                 <div class="card-header">
@@ -779,7 +780,7 @@ function renderCards(websites) {
                 <div class="card-footer">
                     <span class="category">${escapeHtml(item.category || '未分类')}</span>
                     <span class="user">
-                        <span>${escapeHtml(item.user_email || '匿名')}</span>
+                        <span>${escapeHtml(displayName)}</span>
                         <span class="dot"></span>
                         <span>${formatDate(item.created_at)}</span>
                     </span>
@@ -821,6 +822,7 @@ async function addWebsite(title, url, description, category) {
                 category: category.trim() || null,
                 user_id: currentUser.id,
                 user_email: currentUser.email,
+                user_username: profileData?.username || currentUser.user_metadata?.username || currentUser.email,
             }])
             .select();
 
