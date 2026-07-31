@@ -99,7 +99,7 @@ async function fetchWebsiteInfoInline(url) {
 
     try {
         const faviconDomain = new URL(normalizedUrl).hostname;
-        const faviconUrl = `https://www.google.com/s2/favicons?domain=${faviconDomain}&sz=64`;
+        const faviconUrl = `https://favicone.com/${faviconDomain}?s=64`;
         if (faviconPreview) { faviconPreview.src = faviconUrl; faviconPreview.style.display = 'block'; }
     } catch (e) {}
 
@@ -541,7 +541,7 @@ function renderCards(websites) {
             <div class="card" data-id="${item.id}">
                 <div class="card-header">
                     <div class="card-icon">
-                        <img class="card-icon-img" src="https://www.google.com/s2/favicons?domain=${domain}&sz=32" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+                        <img class="card-icon-img" src="https://favicone.com/${domain}?s=32" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
                         <span class="card-icon-fallback" style="display:none;">${(domain.charAt(0) || '🌐').toUpperCase()}</span>
                     </div>
                     <div class="card-title">
