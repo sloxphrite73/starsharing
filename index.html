@@ -83,10 +83,26 @@
                 <section class="import-section">
                     <h2>📂 从收藏夹导入</h2>
                     <p class="import-subtitle">从浏览器导出的书签 HTML 文件批量导入</p>
-                    <div class="import-placeholder">
+                    <div class="import-placeholder" id="importPlaceholder">
                         <div class="import-placeholder-icon">📁</div>
                         <p>选择你从浏览器导出的书签 HTML 文件</p>
-                        <button class="btn btn-outline" disabled>即将推出</button>
+                        <label class="btn btn-outline" style="cursor:pointer;">
+                            选择文件
+                            <input type="file" id="bookmarkFileInput" accept=".html,.htm" style="display:none;" />
+                        </label>
+                    </div>
+                    <div id="bookmarkImportResult" style="display:none;">
+                        <div class="bookmark-import-header">
+                            <span id="bookmarkImportCount">找到 0 个书签</span>
+                            <div style="display:flex;gap:8px;">
+                                <label class="btn btn-outline btn-sm" style="cursor:pointer;">
+                                    重新选择
+                                    <input type="file" id="bookmarkFileInputRetry" accept=".html,.htm" style="display:none;" />
+                                </label>
+                                <button class="btn btn-primary btn-sm" id="importAllBookmarksBtn">全部导入</button>
+                            </div>
+                        </div>
+                        <div class="bookmark-list" id="bookmarkList"></div>
                     </div>
                 </section>
             </div>

@@ -711,6 +711,105 @@ function initApp() {
         });
     }
 
+    // ========== 5b. 从收藏夹 HTML 导入 ==========
+    const bookmarkFileInput = document.getElementById('bookmarkFileInput');
+    const bookmarkFileInputRetry = document.getElementById('bookmarkFileInputRetry');
+    const importAllBtn = document.getElementById('importAllBookmarksBtn');
+    const importPlaceholder = document.getElementById('importPlaceholder');
+    const bookmarkImportResult = document.getElementById('bookmarkImportResult');
+    const bookmarkImportCount = document.getElementById('bookmarkImportCount');
+    const bookmarkList = document.getElementById('bookmarkList');
+    let parsedBookmarks = [];
+
+    if (bookmarkFileInput) {
+        bookmarkFileInput.addEventListener('change', (e) => handleBookmarkFile(e.target.files[0]));
+    }
+    if (bookmarkFileInputRetry) {
+        bookmarkFileInputRetry.addEventListener('change', (e) => handleBookmarkFile(e.target.files[0]));
+    }
+    if (importAllBtn) {
+        importAllBtn.addEventListener('click', () => importAllBookmarks());
+    }
+
+    function handleBookmarkFile(file) {
+        if (!file) return;
+        if (!currentUser) { showToast('请先登录', 'error'); return; }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const html = e.target.result;
+            parsedBookmarks = parseBookmarkHTML(html);
+            renderBookmarkList(parsedBookmarks);
+        };
+        reader.readAsText(file);
+    }
+
+    function parseBookmarkHTML(html) {
+        const bookmarks = [];
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const links = doc.querySelectorAll('a[href]');
+        links.forEach(link => {
+            const url = link.getAttribute('href') || '';
+            const title = (link.textContent || '').replace(/\s+/g, ' ').trim();
+            // 过滤非 HTTP 链接（如 javascript:、file: 等）
+            if (!/^https?:\/\//i.test(url)) return;
+            // 去重（按 URL）
+            if (bookmarks.some(b => b.url === url)) return;
+            bookmarks.push({ title: title || getDomain(url), url });
+        });
+        return bookmarks;
+    }
+
+    function renderBookmarkList(bookmarks) {
+        if (!importPlaceholder || !bookmarkImportResult || !bookmarkImportCount || !bookmarkList) return;
+        importPlaceholder.style.display = 'none';
+        bookmarkImportResult.style.display = 'block';
+
+        if (bookmarks.length === 0) {
+            bookmarkImportCount.textContent = '未找到有效书签';
+            bookmarkList.innerHTML = '<div class="empty-state" style="padding:20px;"><p>文件中没有有效的 HTTP 链接</p></div>';
+            return;
+        }
+        bookmarkImportCount.textContent = `找到 ${bookmarks.length} 个书签`;
+        bookmarkList.innerHTML = bookmarks.map((b, i) => `
+            <div class="bookmark-item">
+                <span class="bookmark-item-index">${i + 1}</span>
+                <div class="bookmark-item-info">
+                    <div class="bookmark-item-title">${escapeHtml(b.title)}</div>
+                    <div class="bookmark-item-url">${escapeHtml(b.url)}</div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    async function importAllBookmarks() {
+        if (!currentUser) { showToast('请先登录', 'error'); return; }
+        if (!parsedBookmarks || parsedBookmarks.length === 0) { showToast('没有可导入的书签', 'error'); return; }
+        if (!importAllBtn) return;
+        importAllBtn.disabled = true;
+        importAllBtn.textContent = '导入中...';
+        let successCount = 0;
+        let failCount = 0;
+        for (const bm of parsedBookmarks) {
+            try {
+                const { error } = await supabaseClient.from('websites').insert([{
+                    title: (bm.title || getDomain(bm.url)).trim(),
+                    url: bm.url.trim(),
+                    description: null,
+                    category: null,
+                    user_id: currentUser.id,
+                    user_email: currentUser.email,
+                    user_username: profileData?.username || currentUser.user_metadata?.username || currentUser.email,
+                }]);
+                if (error) { failCount++; } else { successCount++; }
+            } catch (err) { failCount++; }
+        }
+        showToast(`导入完成！成功 ${successCount} 条` + (failCount > 0 ? `，失败 ${failCount} 条` : ''), successCount > 0 ? 'success' : 'error');
+        importAllBtn.disabled = false;
+        importAllBtn.textContent = '全部导入';
+        await loadWebsites();
+    }
+
     // ========== 6. 认证模态框事件 ==========
     authModalClose.addEventListener('click', closeAuthModal);
     authModal.addEventListener('click', (e) => { if (e.target === authModal) closeAuthModal(); });
