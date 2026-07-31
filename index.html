@@ -93,13 +93,16 @@
                     </div>
                     <div id="bookmarkImportResult" style="display:none;">
                         <div class="bookmark-import-header">
-                            <span id="bookmarkImportCount">找到 0 个书签</span>
+                            <label class="bookmark-check-all">
+                                <input type="checkbox" id="bookmarkSelectAll" checked />
+                                <span id="bookmarkImportCount">找到 0 个书签</span>
+                            </label>
                             <div style="display:flex;gap:8px;">
                                 <label class="btn btn-outline btn-sm" style="cursor:pointer;">
                                     重新选择
                                     <input type="file" id="bookmarkFileInputRetry" accept=".html,.htm" style="display:none;" />
                                 </label>
-                                <button class="btn btn-primary btn-sm" id="importAllBookmarksBtn">全部导入</button>
+                                <button class="btn btn-primary btn-sm" id="importSelectedBookmarksBtn">导入选中</button>
                             </div>
                         </div>
                         <div class="bookmark-list" id="bookmarkList"></div>

@@ -1271,71 +1271,83 @@ a {
     gap: 12px;
 }
 
-.bookmark-import-header span {
+.bookmark-check-all {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 14px;
     font-weight: 600;
     color: var(--gray-700);
-    font-size: 14px;
+    user-select: none;
+}
+
+.bookmark-check-all input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary);
+    cursor: pointer;
 }
 
 .bookmark-list {
-    max-height: 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 500px;
     overflow-y: auto;
-    border: 1px solid var(--gray-200);
-    border-radius: 8px;
 }
 
 .bookmark-item {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 12px;
     padding: 10px 14px;
-    border-bottom: 1px solid var(--gray-100);
-    transition: background 0.15s;
-}
-
-.bookmark-item:last-child {
-    border-bottom: none;
+    background: var(--gray-50);
+    border: 1px solid var(--gray-100);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: var(--transition);
+    user-select: none;
 }
 
 .bookmark-item:hover {
-    background: var(--gray-50);
+    background: var(--primary-bg);
+    border-color: rgba(79,70,229,0.15);
 }
 
-.bookmark-item-index {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: var(--primary-bg);
-    color: var(--primary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    font-weight: 600;
+.bookmark-item-checkbox {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary);
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.bookmark-item .card-icon {
     flex-shrink: 0;
 }
 
-.bookmark-item-info {
+.bookmark-item-text {
     flex: 1;
     min-width: 0;
 }
 
 .bookmark-item-title {
     font-size: 14px;
-    font-weight: 500;
+    font-weight: 600;
     color: var(--gray-800);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.bookmark-item-url {
+.bookmark-item-domain {
     font-size: 12px;
     color: var(--gray-400);
+    margin-top: 2px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-top: 2px;
 }
 
 /* 隐藏默认 file input，由 label btn 触发 */

@@ -714,7 +714,8 @@ function initApp() {
     // ========== 5b. 从收藏夹 HTML 导入 ==========
     const bookmarkFileInput = document.getElementById('bookmarkFileInput');
     const bookmarkFileInputRetry = document.getElementById('bookmarkFileInputRetry');
-    const importAllBtn = document.getElementById('importAllBookmarksBtn');
+    const importSelectedBtn = document.getElementById('importSelectedBookmarksBtn');
+    const bookmarkSelectAll = document.getElementById('bookmarkSelectAll');
     const importPlaceholder = document.getElementById('importPlaceholder');
     const bookmarkImportResult = document.getElementById('bookmarkImportResult');
     const bookmarkImportCount = document.getElementById('bookmarkImportCount');
@@ -727,8 +728,16 @@ function initApp() {
     if (bookmarkFileInputRetry) {
         bookmarkFileInputRetry.addEventListener('change', (e) => handleBookmarkFile(e.target.files[0]));
     }
-    if (importAllBtn) {
-        importAllBtn.addEventListener('click', () => importAllBookmarks());
+    if (importSelectedBtn) {
+        importSelectedBtn.addEventListener('click', () => importSelectedBookmarks());
+    }
+    if (bookmarkSelectAll) {
+        bookmarkSelectAll.addEventListener('change', () => {
+            const checked = bookmarkSelectAll.checked;
+            if (bookmarkList) {
+                bookmarkList.querySelectorAll('.bookmark-item-checkbox').forEach(cb => { cb.checked = checked; });
+            }
+        });
     }
 
     function handleBookmarkFile(file) {
@@ -738,6 +747,7 @@ function initApp() {
         reader.onload = (e) => {
             const html = e.target.result;
             parsedBookmarks = parseBookmarkHTML(html);
+            if (bookmarkSelectAll) bookmarkSelectAll.checked = true;
             renderBookmarkList(parsedBookmarks);
         };
         reader.readAsText(file);
@@ -751,11 +761,10 @@ function initApp() {
         links.forEach(link => {
             const url = link.getAttribute('href') || '';
             const title = (link.textContent || '').replace(/\s+/g, ' ').trim();
-            // 过滤非 HTTP 链接（如 javascript:、file: 等）
             if (!/^https?:\/\//i.test(url)) return;
-            // 去重（按 URL）
             if (bookmarks.some(b => b.url === url)) return;
-            bookmarks.push({ title: title || getDomain(url), url });
+            const domain = getDomain(url);
+            bookmarks.push({ title: title || domain, url, domain });
         });
         return bookmarks;
     }
@@ -772,28 +781,45 @@ function initApp() {
         }
         bookmarkImportCount.textContent = `找到 ${bookmarks.length} 个书签`;
         bookmarkList.innerHTML = bookmarks.map((b, i) => `
-            <div class="bookmark-item">
-                <span class="bookmark-item-index">${i + 1}</span>
-                <div class="bookmark-item-info">
-                    <div class="bookmark-item-title">${escapeHtml(b.title)}</div>
-                    <div class="bookmark-item-url">${escapeHtml(b.url)}</div>
+            <label class="bookmark-item">
+                <input type="checkbox" class="bookmark-item-checkbox" checked data-index="${i}" />
+                <div class="card-icon">
+                    <img class="card-icon-img" src="https://favicone.com/${b.domain}?s=32" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+                    <span class="card-icon-fallback" style="display:none;">${(b.domain.charAt(0) || '🌐').toUpperCase()}</span>
                 </div>
-            </div>
+                <div class="bookmark-item-text">
+                    <div class="bookmark-item-title">${escapeHtml(b.title)}</div>
+                    <div class="bookmark-item-domain">${escapeHtml(b.domain)}</div>
+                </div>
+            </label>
         `).join('');
     }
 
-    async function importAllBookmarks() {
+    async function importSelectedBookmarks() {
         if (!currentUser) { showToast('请先登录', 'error'); return; }
         if (!parsedBookmarks || parsedBookmarks.length === 0) { showToast('没有可导入的书签', 'error'); return; }
-        if (!importAllBtn) return;
-        importAllBtn.disabled = true;
-        importAllBtn.textContent = '导入中...';
+        if (!importSelectedBtn) return;
+
+        // 收集选中项
+        const selectedIndices = [];
+        if (bookmarkList) {
+            bookmarkList.querySelectorAll('.bookmark-item-checkbox:checked').forEach(cb => {
+                const idx = parseInt(cb.dataset.index);
+                if (!isNaN(idx)) selectedIndices.push(idx);
+            });
+        }
+        if (selectedIndices.length === 0) { showToast('请至少选中一个书签', 'error'); return; }
+
+        importSelectedBtn.disabled = true;
+        importSelectedBtn.textContent = '导入中...';
         let successCount = 0;
         let failCount = 0;
-        for (const bm of parsedBookmarks) {
+        for (const idx of selectedIndices) {
+            const bm = parsedBookmarks[idx];
+            if (!bm) continue;
             try {
                 const { error } = await supabaseClient.from('websites').insert([{
-                    title: (bm.title || getDomain(bm.url)).trim(),
+                    title: bm.title.trim(),
                     url: bm.url.trim(),
                     description: null,
                     category: null,
@@ -805,8 +831,8 @@ function initApp() {
             } catch (err) { failCount++; }
         }
         showToast(`导入完成！成功 ${successCount} 条` + (failCount > 0 ? `，失败 ${failCount} 条` : ''), successCount > 0 ? 'success' : 'error');
-        importAllBtn.disabled = false;
-        importAllBtn.textContent = '全部导入';
+        importSelectedBtn.disabled = false;
+        importSelectedBtn.textContent = '导入选中';
         await loadWebsites();
     }
 
