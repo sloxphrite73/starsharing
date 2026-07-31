@@ -957,10 +957,8 @@ async function tryLoadFaviconForIcon(iconEl, domain) {
         myWebsitesMultiSelectBtn.addEventListener('click', () => {
             myWebsitesMultiSelect = !myWebsitesMultiSelect;
             myWebsitesMultiSelectBtn.textContent = myWebsitesMultiSelect ? '☑ 退出多选' : '☐ 多选模式';
-            myWebsitesCheckAllLabel.style.display = myWebsitesMultiSelect ? '' : 'none';
             myWebsitesDeleteBtn.style.display = myWebsitesMultiSelect ? '' : 'none';
             myWebsitesAddTagBtn.style.display = myWebsitesMultiSelect ? '' : 'none';
-            if (!myWebsitesMultiSelect && myWebsitesCheckAll) myWebsitesCheckAll.checked = false;
             loadMyWebsites();
         });
     }
@@ -1025,6 +1023,57 @@ async function tryLoadFaviconForIcon(iconEl, domain) {
         return ids;
     }
 
+    // 拖拽选择逻辑（仅多选模式）
+    let dragSelecting = false;
+    let dragSelectStarted = false;
+    if (myWebsitesList) {
+        myWebsitesList.addEventListener('mousedown', (e) => {
+            if (!myWebsitesMultiSelect) return;
+            const item = e.target.closest('.mywebsite-item');
+            if (!item) return;
+            const cb = item.querySelector('.mywebsite-item-checkbox');
+            if (!cb) return;
+            dragSelecting = true;
+            dragSelectStarted = true;
+            cb.checked = !cb.checked;
+            e.preventDefault();
+        });
+        myWebsitesList.addEventListener('mousemove', (e) => {
+            if (!dragSelecting || !myWebsitesMultiSelect) return;
+            const item = e.target.closest('.mywebsite-item');
+            if (!item) return;
+            const cb = item.querySelector('.mywebsite-item-checkbox');
+            if (!cb) return;
+            cb.checked = true;
+        });
+        document.addEventListener('mouseup', () => {
+            dragSelecting = false;
+        });
+        // 触摸支持
+        myWebsitesList.addEventListener('touchstart', (e) => {
+            if (!myWebsitesMultiSelect) return;
+            const touch = e.touches[0];
+            const item = document.elementFromPoint(touch.clientX, touch.clientY)?.closest('.mywebsite-item');
+            if (!item) return;
+            const cb = item.querySelector('.mywebsite-item-checkbox');
+            if (!cb) return;
+            dragSelecting = true;
+            cb.checked = !cb.checked;
+        }, { passive: true });
+        myWebsitesList.addEventListener('touchmove', (e) => {
+            if (!dragSelecting || !myWebsitesMultiSelect) return;
+            const touch = e.touches[0];
+            const item = document.elementFromPoint(touch.clientX, touch.clientY)?.closest('.mywebsite-item');
+            if (!item) return;
+            const cb = item.querySelector('.mywebsite-item-checkbox');
+            if (!cb) return;
+            cb.checked = true;
+        }, { passive: true });
+        document.addEventListener('touchend', () => {
+            dragSelecting = false;
+        });
+    }
+
     window.loadMyWebsites = loadMyWebsites;
     function loadMyWebsites() {
         if (!myWebsitesList || !myWebsitesCount) return;
@@ -1042,9 +1091,8 @@ async function tryLoadFaviconForIcon(iconEl, domain) {
             for (const item of items) {
                 const domain = getDomain(item.url);
                 const cat = item.category || '未分类';
-                const hasCheckbox = myWebsitesMultiSelect;
                 html += '<div class="mywebsite-item">';
-                if (hasCheckbox) html += '<input type="checkbox" class="mywebsite-item-checkbox" data-id="' + item.id + '" />';
+                html += '<input type="checkbox" class="mywebsite-item-checkbox" data-id="' + item.id + '" />';
                 html += [
                     '<a href="' + escapeHtml(item.url) + '" target="_blank" rel="noopener" class="mywebsite-item-link">',
                     '<div class="bookmark-icon" data-domain="' + escapeHtml(domain) + '">',
