@@ -764,7 +764,10 @@ function renderCards(websites) {
         return `
             <div class="card" data-id="${item.id}">
                 <div class="card-header">
-                    <div class="card-icon">${domain.charAt(0).toUpperCase() || '🌐'}</div>
+                    <div class="card-icon">
+                        <img class="card-icon-img" src="https://www.google.com/s2/favicons?domain=${domain}&sz=32" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+                        <span class="card-icon-fallback" style="display:none;">${(domain.charAt(0) || '🌐').toUpperCase()}</span>
+                    </div>
                     <div class="card-title">
                         <a href="${item.url}" target="_blank" rel="noopener">${escapeHtml(item.title)}</a>
                     </div>
