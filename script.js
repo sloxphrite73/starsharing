@@ -786,8 +786,9 @@ function renderBookmarkList(bookmarks) {
         html += [
             '<div class="bookmark-item" data-index="' + i + '">',
             '<input type="checkbox" class="bookmark-item-checkbox" checked data-index="' + i + '" />',
-            '<div class="bookmark-icon">',
-            '<span>' + escapeHtml((b.domain.charAt(0) || '🌐').toUpperCase()) + '</span>',
+            '<div class="bookmark-icon" data-domain="' + escapeHtml(b.domain) + '">',
+            '<span class="bookmark-icon-loader"></span>',
+            '<span class="bookmark-icon-fallback" style="display:none;">' + escapeHtml((b.domain.charAt(0) || '🌐').toUpperCase()) + '</span>',
             '</div>',
             '<div class="bookmark-item-text">',
             '<div class="bookmark-item-title">' + escapeHtml(b.title) + '</div>',
@@ -797,6 +798,57 @@ function renderBookmarkList(bookmarks) {
         ].join('');
     }
     bookmarkList.innerHTML = html;
+    // 异步加载 favicon
+    loadBookmarkFavicons();
+}
+
+function loadBookmarkFavicons() {
+    if (!bookmarkList) return;
+    const icons = bookmarkList.querySelectorAll('.bookmark-icon');
+    icons.forEach(iconEl => {
+        tryLoadFaviconForIcon(iconEl, iconEl.dataset.domain);
+    });
+}
+
+async function tryLoadFaviconForIcon(iconEl, domain) {
+    if (!domain) return;
+    const loader = iconEl.querySelector('.bookmark-icon-loader');
+    const fallback = iconEl.querySelector('.bookmark-icon-fallback');
+    const FAVICON_TIMEOUT = 3000;
+    const faviconCandidates = [
+        `https://favicone.com/${domain}?s=32`,
+        `https://icons.duckduckgo.com/ip3/${domain}.ico`,
+        `https://vemetric.com/favicon?url=${domain}&size=32`,
+    ];
+
+    let loaded = false;
+    for (const url of faviconCandidates) {
+        if (loaded) break;
+        try {
+            const result = await Promise.race([
+                new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = () => resolve({ ok: true, url });
+                    img.onerror = () => resolve({ ok: false });
+                    img.src = url;
+                }),
+                new Promise((resolve) => setTimeout(() => resolve({ ok: false, timeout: true }), FAVICON_TIMEOUT))
+            ]);
+            if (result.ok) {
+                const img = document.createElement('img');
+                img.className = 'bookmark-icon-img';
+                img.src = result.url;
+                img.alt = '';
+                if (loader) loader.style.display = 'none';
+                iconEl.insertBefore(img, iconEl.firstChild);
+                loaded = true;
+            }
+        } catch (e) { /* 继续尝试下一个 */ }
+    }
+    if (!loaded) {
+        if (loader) loader.style.display = 'none';
+        if (fallback) fallback.style.display = 'flex';
+    }
 }
 
     async function importSelectedBookmarks() {
