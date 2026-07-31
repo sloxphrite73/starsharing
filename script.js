@@ -107,14 +107,17 @@ async function fetchWebsiteInfo(url) {
     const urlLoading = document.getElementById('urlLoading');
     const titleInput = document.getElementById('addTitle');
 
+    // 如果用户已经手动输入了标题，只获取图标，不覆盖标题
+    const userHasTitle = titleInput && titleInput.value.trim().length > 0;
+
     // 显示加载状态
     if (urlLoading) urlLoading.style.display = 'inline-block';
     if (faviconPreview) faviconPreview.style.display = 'none';
 
-    // 先尝试设置图标（使用 Google S2 服务，不需要请求许可）
+    // 设置网站图标（使用 Google S2 服务）
     try {
-        const domain = new URL(normalizedUrl).hostname;
-        const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+        const faviconDomain = new URL(normalizedUrl).hostname;
+        const faviconUrl = `https://www.google.com/s2/favicons?domain=${faviconDomain}&sz=64`;
         if (faviconPreview) {
             faviconPreview.src = faviconUrl;
             faviconPreview.style.display = 'block';
@@ -123,41 +126,82 @@ async function fetchWebsiteInfo(url) {
         // 无效域名忽略
     }
 
-    // 尝试获取标题（通过代理）
-    try {
-        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(normalizedUrl)}`;
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
-        const response = await fetch(proxyUrl, { signal: controller.signal });
-        clearTimeout(timeoutId);
-        if (!response.ok) throw new Error('获取失败');
-        const html = await response.text();
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-        let title = doc.querySelector('title')?.textContent?.trim() || '';
-        if (title) {
-            title = title.replace(/\s+/g, ' ').trim();
-            // 仅当标题输入框为空时填充
-            if (titleInput && !titleInput.value.trim()) {
-                titleInput.value = title;
-            }
-        } else {
-            // 无标题，使用域名，同样仅在标题为空时填充
-            const domain = new URL(normalizedUrl).hostname;
-            if (titleInput && !titleInput.value.trim()) {
-                titleInput.value = domain.replace(/^www\./, '');
-            }
-        }
-    } catch (err) {
-        console.warn('获取标题失败，使用域名', err);
-        // 降级：使用域名
-        try {
-            const domain = new URL(normalizedUrl).hostname;
-            titleInput.value = domain.replace(/^www\./, '');
-        } catch (e) {}
-    } finally {
+    // 如果用户已有标题，只获取图标即可
+    if (userHasTitle) {
         if (urlLoading) urlLoading.style.display = 'none';
+        return;
     }
+
+    // 多代理 CORS 代理链（按优先级依次尝试）
+    const proxyFetchers = [
+        async (targetUrl) => {
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            try {
+                const resp = await fetch(proxyUrl, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (!resp.ok) throw new Error('allorigins 返回非 200');
+                return await resp.text();
+            } catch (e) {
+                clearTimeout(timeoutId);
+                throw e;
+            }
+        },
+        async (targetUrl) => {
+            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            try {
+                const resp = await fetch(proxyUrl, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (!resp.ok) throw new Error('corsproxy 返回非 200');
+                return await resp.text();
+            } catch (e) {
+                clearTimeout(timeoutId);
+                throw e;
+            }
+        },
+    ];
+
+    let html = null;
+    for (const fetcher of proxyFetchers) {
+        try {
+            html = await fetcher(normalizedUrl);
+            if (html) break;
+        } catch (e) {
+            console.warn('当前代理获取标题失败，尝试下一个', e);
+        }
+    }
+
+    // 解析 HTML 提取标题
+    if (html) {
+        try {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            let title = doc.querySelector('title')?.textContent?.trim() || '';
+            if (title) {
+                title = title.replace(/\s+/g, ' ').trim();
+                if (titleInput && !titleInput.value.trim()) {
+                    titleInput.value = title;
+                }
+            }
+        } catch (e) {
+            console.warn('解析 HTML 标题失败', e);
+        }
+    }
+
+    // 最终降级：若仍未获取到标题且用户未输入，使用域名
+    if (titleInput && !titleInput.value.trim()) {
+        try {
+            const fallbackDomain = new URL(normalizedUrl).hostname;
+            titleInput.value = fallbackDomain.replace(/^www\./, '');
+        } catch (e) {
+            // URL 无效，放弃
+        }
+    }
+
+    if (urlLoading) urlLoading.style.display = 'none';
 }
 // ================================================================
 // 5. 认证状态管理
