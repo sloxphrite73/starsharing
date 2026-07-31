@@ -37,8 +37,8 @@ const CROP_CIRCLE_RADIUS = 100; // 裁剪圆半径（像素），实际大小由
 // 4. 工具函数
 // ================================================================
 function showToast(message, type = 'info') {
-    // 直接使用 document.body，不依赖任何全局变量
-    let container = document.body;
+    // 优先使用专用 toast 容器，降级到 document.body
+    let container = toastContainer || document.body;
     
     // 如果 body 还未就绪（极罕见），延迟重试
     if (!container) {
@@ -126,7 +126,10 @@ async function fetchWebsiteInfo(url) {
     // 尝试获取标题（通过代理）
     try {
         const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(normalizedUrl)}`;
-        const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(5000) });
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        const response = await fetch(proxyUrl, { signal: controller.signal });
+        clearTimeout(timeoutId);
         if (!response.ok) throw new Error('获取失败');
         const html = await response.text();
         const parser = new DOMParser();
@@ -579,7 +582,7 @@ function initProfileUI() {
         });
     }
 
-    if (!editUsernameBtn || !uploadAvatarBtn) return; // 若元素不存在则跳过
+    if (!editUsernameBtn) return; // 若编辑按钮不存在则跳过
 
     editUsernameBtn.addEventListener('click', () => {
         usernameEditArea.style.display = 'block';
@@ -1118,7 +1121,7 @@ function onDrag(e) {
 function endDrag(e) {
     if (isDragging) {
         isDragging = false;
-        cropCanvas.style.cursor = 'grab';
+        if (cropCanvas) cropCanvas.style.cursor = 'grab';
     }
 }
 
