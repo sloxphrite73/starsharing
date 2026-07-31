@@ -789,13 +789,12 @@ function renderBookmarkList(bookmarks) {
         bookmarkImportCount.textContent = `找到 ${bookmarks.length} 个书签`;
         bookmarkList.innerHTML = bookmarks.map((b, i) => {
             const favPrimary = `https://favicone.com/${b.domain}?s=32`;
-            const favFallback = `https://${b.domain}/favicon.ico`;
         return `
             <div class="bookmark-item" data-index="${i}">
                 <input type="checkbox" class="bookmark-item-checkbox" checked data-index="${i}" />
                 <div class="card-icon">
                     <img class="card-icon-img" src="${favPrimary}" alt="" loading="lazy"
-                         onerror="var fb=this.parentElement.querySelector('.card-icon-fallback');if(fb)fb.style.display='flex';this.onerror=null;this.src='${favFallback}';" />
+                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
                     <span class="card-icon-fallback" style="display:none;">${(b.domain.charAt(0) || '🌐').toUpperCase()}</span>
                 </div>
                 <div class="bookmark-item-text">
