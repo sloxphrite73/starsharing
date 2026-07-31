@@ -22,7 +22,7 @@ let authModal, authModalClose, authTabs, tabLogin, tabRegister;
 let loginForm, registerForm, loginEmail, loginPassword;
 let registerUsername, registerEmail, registerPassword, loginError, registerError;
 let toastContainer;
-let bookmarkSquareView, importView, profileView, brandLink;
+let bookmarkSquareView, importView, profileView, myWebsitesView, brandLink;
 let addFormInline, addTitleInline, addUrlInline, addDescInline, addCategoryInline, addErrorInline;
 let allWebsitesData = [];
 let profileAvatar, profileUsernameDisplay, usernameLimitInfo, avatarLimitInfo;
@@ -277,11 +277,13 @@ async function handleLogout() {
 // 8. 视图切换
 // ================================================================
 function switchMainView(viewName) {
-    if (!bookmarkSquareView || !importView || !profileView) return;
+    if (!bookmarkSquareView || !importView || !profileView || !myWebsitesView) return;
     bookmarkSquareView.style.display = viewName === 'bookmarkSquare' ? 'block' : 'none';
     importView.style.display = viewName === 'importView' ? 'block' : 'none';
     profileView.style.display = viewName === 'profileView' ? 'block' : 'none';
+    myWebsitesView.style.display = viewName === 'myWebsites' ? 'block' : 'none';
     document.getElementById('mainContent').style.height = (viewName === 'profileView') ? '100%' : 'auto';
+    if (viewName === 'myWebsites') loadMyWebsites();
 
     // 更新导航标签激活状态
     if (navbarTabs) {
@@ -631,6 +633,7 @@ function initApp() {
     bookmarkSquareView = document.getElementById('bookmarkSquareView');
     importView = document.getElementById('importView');
     profileView = document.getElementById('profileView');
+    myWebsitesView = document.getElementById('myWebsitesView');
 
     authModal = document.getElementById('authModal');
     authModalClose = document.getElementById('authModalClose');
@@ -933,6 +936,136 @@ async function tryLoadFaviconForIcon(iconEl, domain) {
     window.loadWebsites = loadWebsites;
     window.switchMainView = switchMainView;
     window.showProfileView = showProfileView;
+
+    // ========== 5c. 我的网站板块 ==========
+    const myWebsitesList = document.getElementById('myWebsitesList');
+    const myWebsitesCount = document.getElementById('myWebsitesCount');
+    const myWebsitesMultiSelectBtn = document.getElementById('myWebsitesMultiSelectBtn');
+    const myWebsitesCheckAll = document.getElementById('myWebsitesCheckAll');
+    const myWebsitesCheckAllLabel = document.getElementById('myWebsitesCheckAllLabel');
+    const myWebsitesDeleteBtn = document.getElementById('myWebsitesDeleteBtn');
+    const myWebsitesAddTagBtn = document.getElementById('myWebsitesAddTagBtn');
+    let myWebsitesMultiSelect = false;
+
+    const tagModal = document.getElementById('tagModal');
+    const tagModalClose = document.getElementById('tagModalClose');
+    const tagModalCancel = document.getElementById('tagModalCancel');
+    const tagModalSave = document.getElementById('tagModalSave');
+    const tagInput = document.getElementById('tagInput');
+
+    if (myWebsitesMultiSelectBtn) {
+        myWebsitesMultiSelectBtn.addEventListener('click', () => {
+            myWebsitesMultiSelect = !myWebsitesMultiSelect;
+            myWebsitesMultiSelectBtn.textContent = myWebsitesMultiSelect ? '☑ 退出多选' : '☐ 多选模式';
+            myWebsitesCheckAllLabel.style.display = myWebsitesMultiSelect ? '' : 'none';
+            myWebsitesDeleteBtn.style.display = myWebsitesMultiSelect ? '' : 'none';
+            myWebsitesAddTagBtn.style.display = myWebsitesMultiSelect ? '' : 'none';
+            if (!myWebsitesMultiSelect && myWebsitesCheckAll) myWebsitesCheckAll.checked = false;
+            loadMyWebsites();
+        });
+    }
+    if (myWebsitesCheckAll) {
+        myWebsitesCheckAll.addEventListener('change', () => {
+            const checked = myWebsitesCheckAll.checked;
+            if (myWebsitesList) {
+                myWebsitesList.querySelectorAll('.mywebsite-item-checkbox').forEach(cb => { cb.checked = checked; });
+            }
+        });
+    }
+    if (myWebsitesDeleteBtn) {
+        myWebsitesDeleteBtn.addEventListener('click', async () => {
+            const ids = getSelectedMyWebsiteIds();
+            if (ids.length === 0) { showToast('请先选择网站', 'error'); return; }
+            if (!confirm(`确定要删除选中的 ${ids.length} 个网站吗？`)) return;
+            let count = 0;
+            for (const id of ids) {
+                const { error } = await supabaseClient.from('websites').delete().eq('id', id).eq('user_id', currentUser.id);
+                if (!error) count++;
+            }
+            showToast(`已删除 ${count} 个网站`, 'info');
+            await loadWebsites();
+            loadMyWebsites();
+        });
+    }
+    if (myWebsitesAddTagBtn) {
+        myWebsitesAddTagBtn.addEventListener('click', () => {
+            const ids = getSelectedMyWebsiteIds();
+            if (ids.length === 0) { showToast('请先选择网站', 'error'); return; }
+            if (tagModal) tagModal.classList.add('active');
+            if (tagInput) tagInput.value = '';
+        });
+    }
+    if (tagModalClose) tagModalClose.addEventListener('click', () => tagModal.classList.remove('active'));
+    if (tagModalCancel) tagModalCancel.addEventListener('click', () => tagModal.classList.remove('active'));
+    if (tagModal) tagModal.addEventListener('click', (e) => { if (e.target === tagModal) tagModal.classList.remove('active'); });
+    if (tagModalSave) {
+        tagModalSave.addEventListener('click', async () => {
+            const ids = getSelectedMyWebsiteIds();
+            const tagText = tagInput ? tagInput.value.trim() : '';
+            if (!tagText) { showToast('请输入标签内容', 'error'); return; }
+            if (ids.length === 0) { showToast('请先选择网站', 'error'); return; }
+            let count = 0;
+            for (const id of ids) {
+                const { error } = await supabaseClient.from('websites').update({ category: tagText }).eq('id', id).eq('user_id', currentUser.id);
+                if (!error) count++;
+            }
+            tagModal.classList.remove('active');
+            showToast(`已为 ${count} 个网站添加标签`, 'success');
+            await loadWebsites();
+            loadMyWebsites();
+        });
+    }
+
+    function getSelectedMyWebsiteIds() {
+        if (!myWebsitesList) return [];
+        const ids = [];
+        myWebsitesList.querySelectorAll('.mywebsite-item-checkbox:checked').forEach(cb => {
+            ids.push(cb.dataset.id);
+        });
+        return ids;
+    }
+
+    window.loadMyWebsites = loadMyWebsites;
+    function loadMyWebsites() {
+        if (!myWebsitesList || !myWebsitesCount) return;
+        if (!currentUser) { myWebsitesList.innerHTML = '<div class="empty-state"><p>请先登录</p></div>'; return; }
+        myWebsitesList.innerHTML = '<div class="loading"><div class="spinner"></div><span>加载中...</span></div>';
+        supabaseClient.from('websites').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }).then(({ data, error }) => {
+            if (error) { myWebsitesList.innerHTML = '<div class="empty-state"><p>加载失败</p></div>'; return; }
+            const items = data || [];
+            myWebsitesCount.textContent = `共 ${items.length} 个网站`;
+            if (items.length === 0) {
+                myWebsitesList.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><h3>还没有网站</h3><p>去"导入"板块添加你的第一个收藏吧！</p></div>';
+                return;
+            }
+            let html = '';
+            for (const item of items) {
+                const domain = getDomain(item.url);
+                const cat = item.category || '未分类';
+                const hasCheckbox = myWebsitesMultiSelect;
+                html += '<div class="mywebsite-item">';
+                if (hasCheckbox) html += '<input type="checkbox" class="mywebsite-item-checkbox" data-id="' + item.id + '" />';
+                html += [
+                    '<a href="' + escapeHtml(item.url) + '" target="_blank" rel="noopener" class="mywebsite-item-link">',
+                    '<div class="bookmark-icon" data-domain="' + escapeHtml(domain) + '">',
+                    '<span class="bookmark-icon-loader"></span>',
+                    '<span class="bookmark-icon-fallback" style="display:none;">' + escapeHtml((domain.charAt(0) || '🌐').toUpperCase()) + '</span>',
+                    '</div>',
+                    '<div class="mywebsite-item-info">',
+                    '<div class="mywebsite-item-title">' + escapeHtml(item.title) + '</div>',
+                    '<div class="mywebsite-item-domain">' + escapeHtml(domain) + '</div>',
+                    '</div>',
+                    '</a>',
+                    '<div class="mywebsite-item-tags">' + cat.split(/[,，]/).filter(t => t.trim()).map(t => '<span class="mywebsite-tag">' + escapeHtml(t.trim()) + '</span>').join('') + '</div>',
+                ].join('');
+                html += '</div>';
+            }
+            myWebsitesList.innerHTML = html;
+            // 异步加载图标
+            const myIcons = myWebsitesList.querySelectorAll('.bookmark-icon');
+            myIcons.forEach(iconEl => { tryLoadFaviconForIcon(iconEl, iconEl.dataset.domain); });
+        });
+    }
 
     // ========== 10. 检查配置并启动 ==========
     if (SUPABASE_CONFIG.url.includes('YOUR_PROJECT')) {

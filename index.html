@@ -19,6 +19,7 @@
         <nav class="navbar-tabs" id="navbarTabs">
             <button class="navbar-tab active" data-view="bookmarkSquare">书签广场</button>
             <button class="navbar-tab" data-view="importView">导入</button>
+            <button class="navbar-tab" data-view="myWebsites">我的网站</button>
         </nav>
         <div class="navbar-actions" id="navActions">
             <!-- 由 JS 动态渲染 -->
@@ -108,6 +109,28 @@
                         <div class="bookmark-list" id="bookmarkList"></div>
                     </div>
                 </section>
+            </div>
+        </div>
+
+        <!-- 我的网站视图（默认隐藏） -->
+        <div id="myWebsitesView" style="display:none;">
+            <div class="mywebsites-toolbar">
+                <div class="mywebsites-toolbar-left">
+                    <button class="btn btn-sm btn-outline" id="myWebsitesMultiSelectBtn">☐ 多选模式</button>
+                    <label class="check-all-label" id="myWebsitesCheckAllLabel" style="display:none;">
+                        <input type="checkbox" id="myWebsitesCheckAll" />
+                        <span>全选</span>
+                    </label>
+                    <button class="btn btn-sm btn-danger" id="myWebsitesDeleteBtn" style="display:none;">删除</button>
+                    <button class="btn btn-sm btn-outline" id="myWebsitesAddTagBtn" style="display:none;">添加标签</button>
+                </div>
+                <span class="stats" id="myWebsitesCount">共 0 个网站</span>
+            </div>
+            <div class="mywebsites-list" id="myWebsitesList">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <span>加载中...</span>
+                </div>
             </div>
         </div>
 
@@ -270,6 +293,22 @@
                     <button type="submit" class="btn btn-primary">添加分享</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- ===== 模态框：添加标签 ===== -->
+    <div class="modal-overlay" id="tagModal">
+        <div class="modal">
+            <button class="modal-close" id="tagModalClose">✕</button>
+            <h2>添加标签</h2>
+            <p class="subtitle">给选中的网站添加标签（用逗号分隔）</p>
+            <div class="form-group">
+                <input type="text" id="tagInput" placeholder="例如: 技术、工具、设计" />
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-outline" id="tagModalCancel">取消</button>
+                <button class="btn btn-primary" id="tagModalSave">保存</button>
+            </div>
         </div>
     </div>
 
