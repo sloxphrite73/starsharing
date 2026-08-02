@@ -1302,18 +1302,6 @@ a {
     border-color: var(--primary);
 }
 
-.mywebsite-item-checkbox:checked::after {
-    content: '';
-    position: absolute;
-    top: 3px;
-    left: 6px;
-    width: 5px;
-    height: 9px;
-    border: solid #fff;
-    border-width: 0 2px 2px 0;
-    transform: rotate(45deg);
-}
-
 .mywebsite-item.drag-selecting {
     background: var(--primary-bg);
     border-color: rgba(79,70,229,0.2);

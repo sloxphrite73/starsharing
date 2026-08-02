@@ -940,12 +940,10 @@ async function tryLoadFaviconForIcon(iconEl, domain) {
     // ========== 5c. 我的网站板块 ==========
     const myWebsitesList = document.getElementById('myWebsitesList');
     const myWebsitesCount = document.getElementById('myWebsitesCount');
-    const myWebsitesMultiSelectBtn = document.getElementById('myWebsitesMultiSelectBtn');
     const myWebsitesCheckAll = document.getElementById('myWebsitesCheckAll');
     const myWebsitesCheckAllLabel = document.getElementById('myWebsitesCheckAllLabel');
     const myWebsitesDeleteBtn = document.getElementById('myWebsitesDeleteBtn');
     const myWebsitesAddTagBtn = document.getElementById('myWebsitesAddTagBtn');
-    let myWebsitesMultiSelect = false;
 
     const tagModal = document.getElementById('tagModal');
     const tagModalClose = document.getElementById('tagModalClose');
@@ -953,21 +951,19 @@ async function tryLoadFaviconForIcon(iconEl, domain) {
     const tagModalSave = document.getElementById('tagModalSave');
     const tagInput = document.getElementById('tagInput');
 
-    if (myWebsitesMultiSelectBtn) {
-        myWebsitesMultiSelectBtn.addEventListener('click', () => {
-            myWebsitesMultiSelect = !myWebsitesMultiSelect;
-            myWebsitesMultiSelectBtn.textContent = myWebsitesMultiSelect ? '☑ 退出多选' : '☐ 多选模式';
-            myWebsitesDeleteBtn.style.display = myWebsitesMultiSelect ? '' : 'none';
-            myWebsitesAddTagBtn.style.display = myWebsitesMultiSelect ? '' : 'none';
-            loadMyWebsites();
-        });
+    function updateMyWebsitesToolbar() {
+        const count = getSelectedMyWebsiteIds().length;
+        if (myWebsitesDeleteBtn) myWebsitesDeleteBtn.style.display = count > 0 ? '' : 'none';
+        if (myWebsitesAddTagBtn) myWebsitesAddTagBtn.style.display = count > 0 ? '' : 'none';
     }
+
     if (myWebsitesCheckAll) {
         myWebsitesCheckAll.addEventListener('change', () => {
             const checked = myWebsitesCheckAll.checked;
             if (myWebsitesList) {
                 myWebsitesList.querySelectorAll('.mywebsite-item-checkbox').forEach(cb => { cb.checked = checked; });
             }
+            updateMyWebsitesToolbar();
         });
     }
     if (myWebsitesDeleteBtn) {
@@ -1023,53 +1019,58 @@ async function tryLoadFaviconForIcon(iconEl, domain) {
         return ids;
     }
 
-    // 拖拽选择逻辑（仅多选模式）
+    // 拖拽选择逻辑（始终开启，支持 toggle 切换）
     let dragSelecting = false;
-    let dragSelectStarted = false;
+    let dragTargetValue = false; // 拖拽时统一设置的值
     if (myWebsitesList) {
         myWebsitesList.addEventListener('mousedown', (e) => {
-            if (!myWebsitesMultiSelect) return;
             const item = e.target.closest('.mywebsite-item');
+            // 点击复选框本身不做拖拽处理
+            if (e.target.classList.contains('mywebsite-item-checkbox')) return;
             if (!item) return;
             const cb = item.querySelector('.mywebsite-item-checkbox');
             if (!cb) return;
             dragSelecting = true;
-            dragSelectStarted = true;
-            cb.checked = !cb.checked;
+            dragTargetValue = !cb.checked;
+            cb.checked = dragTargetValue;
             e.preventDefault();
         });
         myWebsitesList.addEventListener('mousemove', (e) => {
-            if (!dragSelecting || !myWebsitesMultiSelect) return;
+            if (!dragSelecting) return;
             const item = e.target.closest('.mywebsite-item');
             if (!item) return;
             const cb = item.querySelector('.mywebsite-item-checkbox');
             if (!cb) return;
-            cb.checked = true;
+            cb.checked = dragTargetValue;
         });
         document.addEventListener('mouseup', () => {
+            if (dragSelecting) updateMyWebsitesToolbar();
             dragSelecting = false;
         });
         // 触摸支持
         myWebsitesList.addEventListener('touchstart', (e) => {
-            if (!myWebsitesMultiSelect) return;
             const touch = e.touches[0];
-            const item = document.elementFromPoint(touch.clientX, touch.clientY)?.closest('.mywebsite-item');
+            const el = document.elementFromPoint(touch.clientX, touch.clientY);
+            if (!el || el.classList.contains('mywebsite-item-checkbox')) return;
+            const item = el.closest('.mywebsite-item');
             if (!item) return;
             const cb = item.querySelector('.mywebsite-item-checkbox');
             if (!cb) return;
             dragSelecting = true;
-            cb.checked = !cb.checked;
+            dragTargetValue = !cb.checked;
+            cb.checked = dragTargetValue;
         }, { passive: true });
         myWebsitesList.addEventListener('touchmove', (e) => {
-            if (!dragSelecting || !myWebsitesMultiSelect) return;
+            if (!dragSelecting) return;
             const touch = e.touches[0];
             const item = document.elementFromPoint(touch.clientX, touch.clientY)?.closest('.mywebsite-item');
             if (!item) return;
             const cb = item.querySelector('.mywebsite-item-checkbox');
             if (!cb) return;
-            cb.checked = true;
+            cb.checked = dragTargetValue;
         }, { passive: true });
         document.addEventListener('touchend', () => {
+            if (dragSelecting) updateMyWebsitesToolbar();
             dragSelecting = false;
         });
     }
