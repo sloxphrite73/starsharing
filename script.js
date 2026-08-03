@@ -859,7 +859,6 @@ async function tryLoadFaviconForIcon(iconEl, domain) {
         if (!parsedBookmarks || parsedBookmarks.length === 0) { showToast('没有可导入的书签', 'error'); return; }
         if (!importSelectedBtn) return;
 
-        // 收集选中项
         const selectedIndices = [];
         if (bookmarkList) {
             bookmarkList.querySelectorAll('.bookmark-item-checkbox:checked').forEach(cb => {
@@ -870,25 +869,45 @@ async function tryLoadFaviconForIcon(iconEl, domain) {
         if (selectedIndices.length === 0) { showToast('请至少选中一个书签', 'error'); return; }
 
         importSelectedBtn.disabled = true;
-        importSelectedBtn.textContent = '导入中...';
+        importSelectedBtn.textContent = '导入中 0%...';
+        const total = selectedIndices.length;
+        const BATCH_SIZE = 200;
+        const CONCURRENCY = 3;
         let successCount = 0;
-        let failCount = 0;
-        for (const idx of selectedIndices) {
-            const bm = parsedBookmarks[idx];
-            if (!bm) continue;
-            try {
-                const { error } = await supabaseClient.from('websites').insert([{
-                    title: bm.title.trim(),
+        let completed = 0;
+
+        // 构建批次
+        const batches = [];
+        for (let i = 0; i < total; i += BATCH_SIZE) {
+            batches.push(selectedIndices.slice(i, i + BATCH_SIZE));
+        }
+
+        async function processBatch(batch) {
+            const rows = batch.map(idx => {
+                const bm = parsedBookmarks[idx];
+                return {
+                    title: (bm.title || getDomain(bm.url)).trim(),
                     url: bm.url.trim(),
                     description: null,
                     category: null,
                     user_id: currentUser.id,
                     user_email: currentUser.email,
                     user_username: profileData?.username || currentUser.user_metadata?.username || currentUser.email,
-                }]);
-                if (error) { failCount++; } else { successCount++; }
-            } catch (err) { failCount++; }
+                };
+            });
+            const { error } = await supabaseClient.from('websites').insert(rows);
+            completed += batch.length;
+            successCount += error ? 0 : batch.length;
+            importSelectedBtn.textContent = `导入中 ${Math.round(completed / total * 100)}%...`;
         }
+
+        // 并发控制
+        for (let i = 0; i < batches.length; i += CONCURRENCY) {
+            const chunk = batches.slice(i, i + CONCURRENCY);
+            await Promise.all(chunk.map(batch => processBatch(batch)));
+        }
+
+        const failCount = total - successCount;
         showToast(`导入完成！成功 ${successCount} 条` + (failCount > 0 ? `，失败 ${failCount} 条` : ''), successCount > 0 ? 'success' : 'error');
         importSelectedBtn.disabled = false;
         importSelectedBtn.textContent = '导入选中';
@@ -971,11 +990,23 @@ async function tryLoadFaviconForIcon(iconEl, domain) {
             const ids = getSelectedMyWebsiteIds();
             if (ids.length === 0) { showToast('请先选择网站', 'error'); return; }
             if (!confirm(`确定要删除选中的 ${ids.length} 个网站吗？`)) return;
+            myWebsitesDeleteBtn.disabled = true;
+            const BATCH_SIZE = 200;
+            const CONCURRENCY = 3;
             let count = 0;
-            for (const id of ids) {
-                const { error } = await supabaseClient.from('websites').delete().eq('id', id).eq('user_id', currentUser.id);
-                if (!error) count++;
+            const batches = [];
+            for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+                batches.push(ids.slice(i, i + BATCH_SIZE));
             }
+            async function delBatch(batch) {
+                const { error } = await supabaseClient.from('websites').delete().in('id', batch).eq('user_id', currentUser.id);
+                if (!error) count += batch.length;
+            }
+            for (let i = 0; i < batches.length; i += CONCURRENCY) {
+                const chunk = batches.slice(i, i + CONCURRENCY);
+                await Promise.all(chunk.map(batch => delBatch(batch)));
+            }
+            myWebsitesDeleteBtn.disabled = false;
             showToast(`已删除 ${count} 个网站`, 'info');
             await loadWebsites();
             loadMyWebsites();
