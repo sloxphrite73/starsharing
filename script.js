@@ -155,6 +155,54 @@ async function fetchWebsiteInfoInline(url) {
     if (urlLoading) urlLoading.style.display = 'none';
 }
 
+// ===== 仅获取网页标题（无 UI 依赖） =====
+async function fetchPageTitle(url) {
+    let normalizedUrl = url.trim();
+    if (!/^https?:\/\//i.test(normalizedUrl)) normalizedUrl = 'https://' + normalizedUrl;
+
+    const proxyFetchers = [
+        async (targetUrl) => {
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            try {
+                const resp = await fetch(proxyUrl, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (!resp.ok) throw new Error('allorigins 非 200');
+                return await resp.text();
+            } catch (e) { clearTimeout(timeoutId); throw e; }
+        },
+        async (targetUrl) => {
+            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            try {
+                const resp = await fetch(proxyUrl, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (!resp.ok) throw new Error('corsproxy 非 200');
+                return await resp.text();
+            } catch (e) { clearTimeout(timeoutId); throw e; }
+        },
+    ];
+
+    let html = null;
+    for (const fetcher of proxyFetchers) {
+        try { html = await fetcher(normalizedUrl); if (html) break; } catch (e) { /* 继续下一个 */ }
+    }
+
+    if (html) {
+        try {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            let title = doc.querySelector('title')?.textContent?.trim() || '';
+            if (title) {
+                return title.replace(/\s+/g, ' ').trim();
+            }
+        } catch (e) {}
+    }
+    return null;
+}
+
 // ================================================================
 // 5. 认证状态管理
 // ================================================================
@@ -890,11 +938,10 @@ function initApp() {
         const links = doc.querySelectorAll('a[href]');
         links.forEach(link => {
             const url = link.getAttribute('href') || '';
-            const title = (link.textContent || '').replace(/\s+/g, ' ').trim();
             if (!/^https?:\/\//i.test(url)) return;
             if (bookmarks.some(b => b.url === url)) return;
             const domain = getDomain(url);
-            bookmarks.push({ title: title || domain, url, domain });
+            bookmarks.push({ title: domain, fetchedTitle: null, fetching: false, url, domain });
         });
         return bookmarks;
     }
@@ -921,7 +968,10 @@ function renderBookmarkList(bookmarks) {
             '<span class="bookmark-icon-fallback" style="display:none;">' + escapeHtml((b.domain.charAt(0) || '🌐').toUpperCase()) + '</span>',
             '</div>',
             '<div class="bookmark-item-text">',
-            '<div class="bookmark-item-title">' + escapeHtml(b.title) + '</div>',
+            '<div class="bookmark-item-title">',
+            '<span class="bookmark-title-loader"></span>',
+            '<span class="bookmark-title-text">' + escapeHtml(b.domain) + '</span>',
+            '</div>',
             '<div class="bookmark-item-domain">' + escapeHtml(b.domain) + '</div>',
             '</div>',
             '</div>'
@@ -930,6 +980,45 @@ function renderBookmarkList(bookmarks) {
     bookmarkList.innerHTML = html;
     // 异步加载 favicon
     loadBookmarkFavicons();
+    // 并发获取真实标题
+    loadBookmarkTitles(bookmarks);
+}
+
+function loadBookmarkTitles(bookmarks) {
+    if (!bookmarks || bookmarks.length === 0) return;
+    const CONCURRENCY = 6; // 高并发获取标题
+    let idx = 0;
+    async function fetchOne() {
+        while (idx < bookmarks.length) {
+            const i = idx++;
+            const bm = bookmarks[i];
+            if (bm.fetching || bm.fetchedTitle) continue;
+            bm.fetching = true;
+            const titleEl = bookmarkList.querySelector('.bookmark-item[data-index="' + i + '"] .bookmark-title-text');
+            const loaderEl = bookmarkList.querySelector('.bookmark-item[data-index="' + i + '"] .bookmark-title-loader');
+            try {
+                const fetched = await fetchPageTitle(bm.url);
+                bm.fetching = false;
+                if (fetched) {
+                    bm.fetchedTitle = fetched;
+                    bm.title = fetched;
+                }
+            } catch (e) {
+                bm.fetching = false;
+            }
+            // 更新 UI
+            if (titleEl) {
+                titleEl.textContent = bm.title;
+            }
+            if (loaderEl) {
+                loaderEl.style.display = 'none';
+            }
+        }
+    }
+    // 启动并发 workers
+    for (let w = 0; w < CONCURRENCY; w++) {
+        fetchOne();
+    }
 }
 
 function loadBookmarkFavicons() {
