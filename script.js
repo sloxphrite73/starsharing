@@ -25,6 +25,8 @@ let toastContainer;
 let bookmarkSquareView, importView, profileView, myWebsitesView, brandLink;
 let addFormInline, addTitleInline, addUrlInline, addDescInline, addCategoryInline, addErrorInline;
 let allWebsitesData = [];
+let selectedTags = [];
+let filterTagBtn, tagFilterPanel, tagFilterSearch, tagFilterList, filterTagCount;
 let profileAvatar, profileUsernameDisplay, usernameLimitInfo, avatarLimitInfo;
 let editUsernameBtn, usernameEditArea, usernameInput, saveUsernameBtn, cancelUsernameBtn;
 let avatarFileInput;
@@ -517,10 +519,28 @@ async function loadWebsites() {
 function filterAndRenderCards() {
     const keyword = (searchInput && searchInput.value || '').trim().toLowerCase();
     let filtered = allWebsitesData;
-    if (keyword) {
-        filtered = allWebsitesData.filter(item => (item.title || '').toLowerCase().includes(keyword));
+
+    // 标签过滤（AND 逻辑：同时包含所有选中标签）
+    if (selectedTags.length > 0) {
+        filtered = filtered.filter(item => {
+            const itemTags = (item.category || '').split(/[,，]/).map(t => t.trim()).filter(t => t);
+            return selectedTags.every(st => itemTags.some(it => it.toLowerCase() === st.toLowerCase()));
+        });
     }
-    statsCount.textContent = keyword ? `找到 ${filtered.length} 个结果（共 ${allWebsitesData.length} 个）` : `共 ${allWebsitesData.length} 个网站`;
+
+    // 标题关键词过滤
+    if (keyword) {
+        filtered = filtered.filter(item => (item.title || '').toLowerCase().includes(keyword));
+    }
+
+    const tagHint = selectedTags.length > 0 ? `（标签: ${selectedTags.join(', ')}）` : '';
+    if (keyword) {
+        statsCount.textContent = `找到 ${filtered.length} 个结果（共 ${allWebsitesData.length} 个）${tagHint}`;
+    } else {
+        statsCount.textContent = selectedTags.length > 0
+            ? `找到 ${filtered.length} 个结果${tagHint}`
+            : `共 ${allWebsitesData.length} 个网站`;
+    }
     renderCards(filtered);
 }
 
@@ -651,6 +671,14 @@ function initApp() {
     registerError = document.getElementById('registerError');
 
     toastContainer = document.getElementById('toastContainer');
+
+    // 标签过滤
+    filterTagBtn = document.getElementById('filterTagBtn');
+    tagFilterPanel = document.getElementById('tagFilterPanel');
+    tagFilterSearch = document.getElementById('tagFilterSearch');
+    tagFilterList = document.getElementById('tagFilterList');
+    filterTagCount = document.getElementById('filterTagCount');
+
     cropModal = document.getElementById('cropModal');
     const cropModalClose = document.getElementById('cropModalClose');
     const cropCancelBtn = document.getElementById('cropCancelBtn');
@@ -691,6 +719,105 @@ function initApp() {
     if (searchInput) {
         searchInput.addEventListener('input', () => filterAndRenderCards());
     }
+
+    // ========== 4b. 标签过滤面板 ==========
+    if (filterTagBtn) {
+        filterTagBtn.addEventListener('click', () => {
+            const isOpen = tagFilterPanel.style.display !== 'none';
+            tagFilterPanel.style.display = isOpen ? 'none' : 'block';
+            if (!isOpen) {
+                renderTagFilterList();
+                if (tagFilterSearch) tagFilterSearch.value = '';
+            }
+        });
+    }
+    // 点击面板外关闭
+    document.addEventListener('click', (e) => {
+        if (tagFilterPanel && tagFilterPanel.style.display !== 'none') {
+            if (!tagFilterPanel.contains(e.target) && e.target !== filterTagBtn && !filterTagBtn.contains(e.target)) {
+                tagFilterPanel.style.display = 'none';
+            }
+        }
+    });
+    // 标签搜索
+    if (tagFilterSearch) {
+        tagFilterSearch.addEventListener('input', () => renderTagFilterList());
+    }
+
+    function collectAllTags() {
+        const tagMap = new Map();
+        allWebsitesData.forEach(item => {
+            const cats = (item.category || '').split(/[,，]/).map(t => t.trim()).filter(t => t);
+            cats.forEach(tag => {
+                const lower = tag.toLowerCase();
+                const exist = [...tagMap.entries()].find(([k]) => k.toLowerCase() === lower);
+                if (exist) {
+                    tagMap.set(exist[0], exist[1] + 1);
+                } else {
+                    tagMap.set(tag, 1);
+                }
+            });
+        });
+        return [...tagMap.entries()].sort((a, b) => b[1] - a[1]);
+    }
+
+    function renderTagFilterList() {
+        if (!tagFilterList) return;
+        const searchKeyword = (tagFilterSearch && tagFilterSearch.value || '').trim().toLowerCase();
+        let tags = collectAllTags();
+        if (searchKeyword) {
+            tags = tags.filter(([tag]) => tag.toLowerCase().includes(searchKeyword));
+        }
+        if (tags.length === 0) {
+            tagFilterList.innerHTML = '<div style="padding:12px 4px;color:var(--gray-400);font-size:13px;width:100%;text-align:center;">' + (searchKeyword ? '没有匹配的标签' : '暂无标签') + '</div>';
+            return;
+        }
+        tagFilterList.innerHTML = tags.map(([tag, count]) => {
+            const isSelected = selectedTags.some(st => st.toLowerCase() === tag.toLowerCase());
+            return '<span class="tag-filter-item' + (isSelected ? ' selected' : '') + '" data-tag="' + escapeHtml(tag) + '">' + escapeHtml(tag) + '<span class="tag-count">' + count + '</span></span>';
+        }).join('');
+        // 绑定点击事件
+        tagFilterList.querySelectorAll('.tag-filter-item').forEach(el => {
+            el.addEventListener('click', () => {
+                const tag = el.dataset.tag;
+                const idx = selectedTags.findIndex(st => st.toLowerCase() === tag.toLowerCase());
+                if (idx >= 0) {
+                    selectedTags.splice(idx, 1);
+                } else {
+                    selectedTags.push(tag);
+                }
+                updateTagFilterUI();
+                filterAndRenderCards();
+                renderTagFilterList();
+            });
+        });
+    }
+
+    function updateTagFilterUI() {
+        if (filterTagCount) {
+            if (selectedTags.length > 0) {
+                filterTagCount.style.display = 'inline-flex';
+                filterTagCount.textContent = selectedTags.length;
+            } else {
+                filterTagCount.style.display = 'none';
+            }
+        }
+        if (filterTagBtn) {
+            if (selectedTags.length > 0) {
+                filterTagBtn.classList.add('has-filter');
+            } else {
+                filterTagBtn.classList.remove('has-filter');
+            }
+        }
+    }
+
+    // 清空标签过滤
+    window.clearTagFilter = function() {
+        selectedTags = [];
+        updateTagFilterUI();
+        filterAndRenderCards();
+        if (tagFilterPanel) tagFilterPanel.style.display = 'none';
+    };
 
     // ========== 5. 导入板块 — 单个导入表单 ==========
     if (addUrlInline) {

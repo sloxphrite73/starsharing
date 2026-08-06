@@ -31,8 +31,19 @@
 
         <!-- 书签广场：搜索 + 网站列表 -->
         <div id="bookmarkSquareView">
-            <div class="search-bar-wrapper">
-                <input type="text" id="searchInput" class="search-input" placeholder="搜索标题…" />
+            <div class="filter-bar">
+                <div class="search-bar-wrapper">
+                    <input type="text" id="searchInput" class="search-input" placeholder="搜索标题…" />
+                </div>
+                <button class="btn btn-outline filter-tag-btn" id="filterTagBtn" title="按标签过滤">
+                    🏷️ 按标签过滤
+                    <span class="filter-tag-count" id="filterTagCount" style="display:none;"></span>
+                </button>
+            </div>
+            <!-- 标签过滤面板 -->
+            <div class="tag-filter-panel" id="tagFilterPanel" style="display:none;">
+                <input type="text" class="tag-filter-search" id="tagFilterSearch" placeholder="搜索标签…" />
+                <div class="tag-filter-list" id="tagFilterList"></div>
             </div>
             <div class="page-header">
                 <span class="stats" id="statsCount">共 0 个网站</span>
@@ -314,6 +325,6 @@
     <!-- ===== Toast 容器 ===== -->
     <div class="toast-container" id="toastContainer"></div>
 
-    <script src="script.js?v=4"></script>
+    <script src="script.js?v=5"></script>
 </body>
 </html>
