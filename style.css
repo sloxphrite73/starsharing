@@ -1689,6 +1689,7 @@ a {
 .bookmark-item-text {
     flex: 1;
     min-width: 0;
+    overflow: hidden;
 }
 
 .bookmark-item-title {
@@ -1698,6 +1699,7 @@ a {
     font-weight: 600;
     color: var(--gray-800);
     min-width: 0;
+    overflow: hidden;
 }
 
 .bookmark-title-loader {
@@ -1707,14 +1709,11 @@ a {
     border-top: 2px solid var(--primary-light);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
-    display: inline-block;
     flex-shrink: 0;
     margin-right: 6px;
-    vertical-align: middle;
 }
 
 .bookmark-title-text {
-    flex: 1;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
