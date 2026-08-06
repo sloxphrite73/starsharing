@@ -1609,8 +1609,7 @@ a {
     flex-direction: column;
     gap: 8px;
     max-height: 480px;
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: hidden auto;
     -webkit-overflow-scrolling: touch;
 }
 
@@ -1625,7 +1624,9 @@ a {
     cursor: pointer;
     transition: var(--transition);
     user-select: none;
-    flex-shrink: 0;
+    width: auto;
+    min-width: 100%;
+    box-sizing: border-box;
 }
 
 .bookmark-item:hover {
